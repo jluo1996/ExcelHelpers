@@ -1,9 +1,9 @@
+
 from datetime import datetime
 import os
 import shutil
 import pandas as pd
-
-from InsuranceStatusHelperEnum import ENROLLMENT_STATUS_ENUM, MATCHING_STATUS_ENUM, PLAN_TYPE_ENUM
+from ExcelInsuranceProviderHelper.InsuranceStatusHelperEnum import ENROLLMENT_STATUS_ENUM, INSURANCE_PROVIDER_ENUM, MATCHING_STATUS_ENUM, PLAN_TYPE_ENUM
 
 FILE_LOCATION = "D://sample.xlsx"   # this is used for debugging
 
@@ -16,125 +16,148 @@ ADP_TERMINATION_DATE_COLUMN = "TERMINATION DATE"
 ADP_PLAN_TYPE_COLUMN = "PLAN TYPE"
 ADP_ENROLLMENT_STATUS_COLUMN = "ENROLLMENT STATUS"
 
+# BFS sheet column names
+BFS_FIRST_NAME_COLUMN = "First Name"
+BFS_LAST_NAME_COLUMN = "Last Name"
+BFS_DATE_OF_BIRTH_COLUMN = "Date of Birth"
+BFS_DATE_OF_HIRE_COLUMN = "Date of Hire"
+BFS_TERMINATION_DATE_COLUMN = "Termination Date"
+
 # Insurance sheet column names. Assuming all insurance providers use the same column names
 INSURANCE_NAME_COLUMN = "full name"
 INSURANCE_DATE_OF_BIRTH_COLUMN = "Date of Birth"
 INSURANCE_DATE_OF_HIRE_COLUMN = "Date of Hire"
 INSURANCE_TERMINATION_DATE_COLUMN = "Termination Date"
 
+# Sheet Names
+ADP_SHEET_NAME = "Employee Enrollments"
+BFS_SHEET_NAME = "bfs"
 
 
 
+
+"""
+This is a helper to retrieve insurance status of each employee
+"""
 class InsuranceStatusHelper:
-    def __init__(self):
-        self.ADP_df = None   # a single dataframe from ADP export 
-        self.insurance_df_dict = {}  # a list of dataframe from insurance providers
+    def __init__(self, adp_file_full_path : str, insurance_file_full_path : str, insurance_provider_type : INSURANCE_PROVIDER_ENUM, plan_type : PLAN_TYPE_ENUM, output_folder : str):
+        self.adp_file_path = adp_file_full_path
+        self.insurance_file_path = insurance_file_full_path
+        self.plan_type = plan_type
+        self.insurance_provider_type = insurance_provider_type
+        self.output_folder = output_folder
 
-    def run(self):
-        # TODO: ask user to select the file
-        self.ADP_df, self.insurance_dfs_dict = self.get_dataframes(FILE_LOCATION)
+    def generate_status_report(self):
+        report_df = self.get_status_report(self.adp_file_path, self.insurance_file_path, self.insurance_provider_type, self.plan_type, self.output_folder)
+        if report_df is None:
+            print("Failed to get status report dataframe!")
+            return
+        
+    def create_excel_file(df : pd.DataFrame, output_file_full_name: str, overwite : bool = True):
+        already_exist = os.path.exists(output_file_full_name)
+        proceed = True
+        if already_exist:
+            if not overwite:
+                proceed = False
 
-        # TODO: ask user to select the plan type column name
-        plan_type = PLAN_TYPE_ENUM.EMPLOYEE_LIFE
-        employee_with_selected_plan_type_df = self.get_employees_by_plan_type(self.ADP_df, ADP_PLAN_TYPE_COLUMN, plan_type)
+        if proceed:
+            # TODO: create the output file
+            pass
+
+    def get_status_report(self, adp_file_full_path : str, insurance_file_full_path : str, insurance_provider_type : INSURANCE_PROVIDER_ENUM, plan_type : PLAN_TYPE_ENUM, output_folder : str):
+        if insurance_provider_type == INSURANCE_PROVIDER_ENUM.CIGNA:
+            return None
+        elif insurance_provider_type == INSURANCE_PROVIDER_ENUM.BFS:
+            return self.get_status_report_for_bfs(adp_file_full_path, insurance_file_full_path, plan_type)
+        elif insurance_provider_type == INSURANCE_PROVIDER_ENUM.BSS:
+            return None
+        else:
+            return None
+
+    def get_status_report_for_bfs(self, adp_file_full_path : str, bfs_file_full_path : str, plan_type: PLAN_TYPE_ENUM) -> pd.DataFrame:
+        adp_xls = pd.ExcelFile(adp_file_full_path) # read it as excel file first in case there are more than 1 sheet
+        adp_df = pd.read_excel(adp_xls, ADP_SHEET_NAME)
+        adp_df = self.filter_by_columns(adp_df, [ADP_PLAN_TYPE_COLUMN], [plan_type.get_string()]) # keep only row with the given plan_type
+
+        bfs_xls = pd.ExcelFile(bfs_file_full_path) # read it as excel file first in case there are more than 1 sheet
+        bfs_df = pd.read_excel(bfs_xls, BFS_SHEET_NAME)
 
         final_df = pd.DataFrame(columns = [ADP_NAME_COLUMN, ADP_DATE_OF_BIRTH_COLUMN, ADP_HIRE_DATE_COLUMN, ADP_TERMINATION_DATE_COLUMN, "Comments"])   # Initialize the final DataFrame to store results
 
-        for row_index, row in employee_with_selected_plan_type_df.iterrows():
-            new_comments = {}
-            employee_name = row[ADP_NAME_COLUMN]
-            employee_date_of_birth = self.get_excel_serial_date(row[ADP_DATE_OF_BIRTH_COLUMN])
+        new_comment_key = INSURANCE_PROVIDER_ENUM.BFS.get_string()
 
-            for sheet_name, insurance_df in self.insurance_dfs_dict.items():
-                matching_employee_df = self.filter_by_columns(insurance_df, [INSURANCE_NAME_COLUMN, INSURANCE_DATE_OF_BIRTH_COLUMN], [employee_name, employee_date_of_birth])
+        for adp_row_index, adp_row in adp_df.iterrows():
+            new_comments = {new_comment_key : ""}
+            employee_fullname = adp_row[ADP_NAME_COLUMN] # Format: last, first
+            employee_date_of_birth = self.get_excel_serial_date(adp_row[ADP_DATE_OF_BIRTH_COLUMN]) # ADP always have "Month/Day/Year". Need to convert it first
+            employee_last_name, employee_first_name = self.get_last_and_first_name(employee_fullname)
 
-                if len(matching_employee_df) == 0:
-                    new_comments[sheet_name] = MATCHING_STATUS_ENUM.NOT_EXIST.value
-                    continue
+            same_employee_in_bfs_df = self.filter_by_columns(bfs_df, [BFS_FIRST_NAME_COLUMN, BFS_LAST_NAME_COLUMN, BFS_DATE_OF_BIRTH_COLUMN], [employee_first_name, employee_last_name, employee_date_of_birth])
 
-                
-                new_comments[sheet_name] = ""
+            if len(same_employee_in_bfs_df) == 0:
+                new_comment_to_add = MATCHING_STATUS_ENUM.NOT_EXIST.get_string()
+            else:
                 new_comment_to_add = None
-                have_seen = False
-                if row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.ACTIVE.value:
-                    for match_row_index, match_row in matching_employee_df.iterrows():
-                        hire_date_ADP = row[ADP_HIRE_DATE_COLUMN]
-                        hire_date_insurance = match_row[INSURANCE_DATE_OF_HIRE_COLUMN]
-                        if hire_date_ADP == hire_date_insurance:
-                            if have_seen:
-                                new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.value
+                found = False
+                if adp_row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.ACTIVE.get_string():
+                    for bfs_row_index, bfs_row in same_employee_in_bfs_df.iterrows():
+                        adp_hire_date = self.get_excel_serial_date(adp_row[ADP_HIRE_DATE_COLUMN])
+                        bfs_hire_date = bfs_row[BFS_DATE_OF_HIRE_COLUMN]
+                        if adp_hire_date == bfs_hire_date:
+                            if found:
+                                new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.get_string()
                                 break
                             else:
-                                new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.value
-                                have_seen = True
-                    if not have_seen:
-                        new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_START_DATE.value
-                elif row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.INACTIVE.value:
-                    for match_row_index, match_row in matching_employee_df.iterrows():
-                        termination_date_ADP = row[ADP_TERMINATION_DATE_COLUMN]
-                        termination_date_insurance = match_row[INSURANCE_TERMINATION_DATE_COLUMN]
-                        if termination_date_ADP == termination_date_insurance:
-                            if have_seen:
-                                new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.value
-                                break
-                            else:
-                                new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.value
-                                have_seen = True
+                                new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
+                                found = True
+                    if not found:
+                        new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_START_DATE.get_string()
+                elif adp_row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.INACTIVE.get_string(): # Use elif instead because cannot assume there are only Active/Inactive 
+                    for bfs_row_index, bfs_row in same_employee_in_bfs_df.iterrows():
+                            adp_termination_date = self.get_excel_serial_date(adp_row[ADP_TERMINATION_DATE_COLUMN])
+                            bfs_termination_date = bfs_row[BFS_TERMINATION_DATE_COLUMN]
+                            if adp_termination_date == bfs_termination_date:
+                                if found:
+                                    new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.get_string()
+                                    break
+                                else:
+                                    new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
+                                    found = True
+                    if not found:
+                        new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_END_DATE.get_string()
 
-                    if not have_seen:
-                        new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_END_DATE.value
-
-                new_comments[sheet_name] += new_comment_to_add 
-
-            new_row = {ADP_NAME_COLUMN : row[ADP_NAME_COLUMN], 
-                   ADP_DATE_OF_BIRTH_COLUMN : row[ADP_DATE_OF_BIRTH_COLUMN], 
-                   ADP_HIRE_DATE_COLUMN : row[ADP_HIRE_DATE_COLUMN],
-                    ADP_TERMINATION_DATE_COLUMN : row[ADP_TERMINATION_DATE_COLUMN], 
+            new_comments[new_comment_key] += new_comment_to_add
+                    
+            new_row = {ADP_NAME_COLUMN : adp_row[ADP_NAME_COLUMN], 
+                   ADP_DATE_OF_BIRTH_COLUMN : adp_row[ADP_DATE_OF_BIRTH_COLUMN], 
+                   ADP_HIRE_DATE_COLUMN : adp_row[ADP_HIRE_DATE_COLUMN],
+                    ADP_TERMINATION_DATE_COLUMN : adp_row[ADP_TERMINATION_DATE_COLUMN], 
+                    ADP_PLAN_TYPE_COLUMN: plan_type.get_string(),
                     "Comments" : new_comments}
 
             final_df = pd.concat([final_df, pd.DataFrame([new_row])], ignore_index=True) # Append the new row to the final DataFrame
-        
-        print(f"Row count of final df: {len(final_df)}")
-
-        output_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output.xlsx") # output folder path is the same as this script file path
-        # final_df.to_excel(OUTPUT_FILE_LOCATION, index=False)
-        # final_df.to_csv(OUTPUT_FILE_LOCATION.replace('.xlsx', '.csv'), index=False)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        if os.path.exists(output_file_path):
-            back_up_file_path = output_file_path.replace('.xlsx', f'_backup_{timestamp}.xlsx')
-            shutil.copy(output_file_path, back_up_file_path)
-        final_df.to_excel(output_file_path, index=False)
-        
-        # Also generate CSV file for debugging purpose
-        csv_file_path = output_file_path.replace('.xlsx', '.csv')
-        if os.path.exists(csv_file_path):
-            back_up_csv_file_path = csv_file_path.replace('.csv', f'_backup_{timestamp}.csv')
-            shutil.copy(csv_file_path, back_up_csv_file_path)
-        final_df.to_csv(output_file_path.replace('.xlsx', '.csv'), index=False)
+            
+        return final_df
 
 
-    # TODO: support multiple ADP sheets
-    def get_dataframes(self, file_full_path, sheet_index_for_ADP=0):
-        '''
-        This will populate all the dataframes from the given excel file path.
-        The sheet_index_for_ADP is used to identify which sheet is the ADP export sheet.
-        '''
-        ADP_df = None
-        insurance_df = {}
-        
-        xls = pd.ExcelFile(file_full_path)
-        sheet_names = xls.sheet_names
-        for idx, sheet_name in enumerate(sheet_names):
-            df = pd.read_excel(xls, sheet_name=sheet_name)
-            if idx == sheet_index_for_ADP:
-                ADP_df = df
-            else:
-                insurance_df[sheet_name] = df
-
-        return ADP_df, insurance_df
+    def get_last_and_first_name(self, full_name: str) -> tuple[str, str]:
+        """
+        full name is in format: "Last, First"
+        Return: [Last, First]
+        """
+        parts = full_name.split(",")
+        last_name = parts[0].strip()
+        first_name = parts[1].strip()
+        return last_name, first_name
     
-    def get_excel_serial_date(self, date_string: str, format: str = "%m/%d/%Y") -> int:
-        dt = datetime.strptime(date_string, format)
+    def get_excel_serial_date(self, date_string, format: str = "%m/%d/%Y") -> int:
+        if not isinstance(date_string, str):
+            print(f"{date_string} is not a string.")
+            return -1
+        try:
+            dt = datetime.strptime(date_string, format)
+        except TypeError:
+            print("Invalid date string")
         excel_start = datetime(1899, 12, 30)  # Excel's epoch start date
         return (dt - excel_start).days
     
@@ -164,12 +187,6 @@ class InsuranceStatusHelper:
 
         return df[mask]
         
-    def get_employees_by_plan_type(self, df: pd.DataFrame, plan_type_column_name : str, plan_type: PLAN_TYPE_ENUM) -> pd.DataFrame:
-        return self.filter_by_columns(df, [plan_type_column_name], [plan_type.value])
 
 
 
-if __name__ == "__main__":
-    insurance_status_helper = InsuranceStatusHelper()
-    insurance_status_helper.run()
-    quit()

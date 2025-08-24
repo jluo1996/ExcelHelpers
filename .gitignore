@@ -1,1 +1,4 @@
 .vscode/launch.json
+
+# Ignore all .pyc files since they are generated when .py files are compiled.
+*.pyc
