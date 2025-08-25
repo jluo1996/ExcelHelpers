@@ -1,8 +1,8 @@
 from datetime import datetime
 import os
 import pandas as pd
-from ExcelInsuranceProviderHelper.InsuranceStatusHelperEnum import ENROLLMENT_STATUS_ENUM, INSURANCE_PROVIDER_ENUM, MATCHING_STATUS_ENUM, PLAN_TYPE_ENUM
-from ExcelInsuranceProviderHelper.logger import Logger
+from InsuranceStatusHelperEnum import ENROLLMENT_STATUS_ENUM, INSURANCE_PROVIDER_ENUM, MATCHING_STATUS_ENUM, PLAN_TYPE_ENUM
+from logger import Logger
 from PyQt5.QtCore import QThread
 
 FILE_LOCATION = "D://sample.xlsx"   # this is used for debugging
