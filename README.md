@@ -8,21 +8,32 @@ This project provides a GUI tool to assist with processing and validating insura
 - Specify output folder for reports
 - Generate status reports with validation and error handling
 
+
 ## Requirements
 - Python 3.9+
 - PyQt5
-- tkinter
+- pandas
+- colorama
+- tkinter (standard with Python on Windows)
 
 ## How to Run
+### Recommended: Use the batch file (Windows)
+1. Double-click `Click_Here_To_Run.bat` in the `ExcelInsuranceProviderHelper` folder.
+   - This script will:
+     - Navigate to the correct folder
+     - Check for and install required dependencies (`PyQt5`, `pandas`, `colorama`) automatically if missing
+     - Launch the application using `pythonw.exe` (no console window)
+
+### Manual method
 1. Install dependencies:
    ```bash
-   pip install PyQt5
+   pip install PyQt5 pandas colorama
    ```
 2. Run the application:
    ```bash
    python MainApp.py
    ```
-   Or use the provided `Run_This.bat` on Windows.
+
 
 ## File Structure
 - `MainApp.py` - Main GUI application
@@ -30,6 +41,7 @@ This project provides a GUI tool to assist with processing and validating insura
 - `InsuranceStatusHelperEnum.py` - Enum definitions for plan types, providers, statuses
 - `GetUniqueEmployeeForLife.py` - Legacy script for specific use case
 - `InsuranceProviderExcelFileConverter/ExcelFileConverter.py` - Excel file conversion utilities
+- `Click_Here_To_Run.bat` - Windows batch file for easy startup
 
 ## Usage
 1. Launch the app.
@@ -37,6 +49,7 @@ This project provides a GUI tool to assist with processing and validating insura
 3. Choose the insurance provider and plan type.
 4. Select the output folder.
 5. Click "Generate Status Report" to process and generate results.
+
 
 ## Notes
 - Only `.xlsx` files are supported for input.
