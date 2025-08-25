@@ -1,19 +1,23 @@
+import os
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit, QLabel, QComboBox, QDesktopWidget
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit, QLabel, QComboBox, QDesktopWidget, QTextEdit
 import tkinter as tk
 from tkinter import filedialog
-
 from ExcelInsuranceProviderHelper.InsuranceStatusHelper import InsuranceStatusHelper
 from ExcelInsuranceProviderHelper.InsuranceStatusHelperEnum import INSURANCE_PROVIDER_ENUM, PLAN_TYPE_ENUM
+from ExcelInsuranceProviderHelper.logger import Logger
 
 WINDOW_WIDTH = 600
 WINDOW_HEIGHT = 200
 
 class MyWindow(QWidget):
-    def __init__(self):
+    def __init__(self, logger : Logger = None):
         super().__init__()
 
+        self.logger  = logger
         self._init_UI()
+
+        self.logger.text_edit = self.log_textedit
 
 
     def _init_UI(self):
@@ -86,6 +90,10 @@ class MyWindow(QWidget):
         # ---------- end of Insurance Plan Type
 
 
+        # Log area
+        self.log_textedit = QTextEdit()
+
+
 
 
         # Function buttons
@@ -102,6 +110,7 @@ class MyWindow(QWidget):
         main_v_layout.addLayout(output_folder_path_h_layout)
         main_v_layout.addLayout(insurance_provider_h_layout)
         main_v_layout.addLayout(insurance_plan_type_h_layout)
+        main_v_layout.addWidget(self.log_textedit)
         main_v_layout.addLayout(function_button_h_box)
         self.setLayout(main_v_layout)
 
@@ -130,18 +139,80 @@ class MyWindow(QWidget):
         self.adp_file_path_textedit.setText(adp_file_full_path)
 
     def generate_status_report_button_clicked(self):
+        proceed, error_msgs = self.get_is_ready_to_generate_status_report()
+        
+        if not proceed:
+            self.logger.log_error("Cannot proceed. See reasons below.")
+            for msg in error_msgs:
+                self.logger.log_error(f"- {msg}")
+            return
+        
         adp_file_path = self.get_adp_file_full_path()
         insurance_file_path = self.get_insurance_file_path()
         insurance_provider_type = INSURANCE_PROVIDER_ENUM(self.get_selected_insurance_provider_index())
         plan_type = PLAN_TYPE_ENUM(self.get_selected_insurance_plan_type_index())
         output_folder = self.get_output_folder_path()
-        helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, insurance_provider_type, plan_type, output_folder)
-        helper.run()
+        helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, insurance_provider_type, plan_type, output_folder, self.logger)
+        helper.generate_status_report(True)
 
     def insurance_file_browse_button_clicked(self):
         insurance_file_full_path = self.get_excel_file_from_user()
         self.insurance_file_path_textedit.setText(insurance_file_full_path)
 
+    def get_is_ready_to_generate_status_report(self) -> tuple[bool, list[str]]:
+        error_msg = []
+
+
+        # Validate ADP file
+        adp_file_full_path = self.get_adp_file_full_path()
+        if not adp_file_full_path:
+            error_msg.append("No ADP file selected.")
+        elif not os.path.isabs(adp_file_full_path):
+            error_msg.append(f"{adp_file_full_path} is not an absolute path.")
+        elif not adp_file_full_path.lower().endswith(".xlsx"):
+            error_msg.append(f"{adp_file_full_path} is not a xlsx file.")
+        # ------- end of Validate ADP file
+
+        # Validate Insurance file
+        insurance_file_full_path = self.get_insurance_file_path()
+        if not insurance_file_full_path:
+            error_msg.append("No insurance file selected.")
+        elif not os.path.isabs(insurance_file_full_path):
+            error_msg.append(f"{insurance_file_full_path} is not an absolute path.")
+        elif not insurance_file_full_path.lower().endswith(".xlsx"):
+            error_msg.append(f"{insurance_file_full_path} is not a xlsx file.")
+        # ------- end of Validate Insurance file
+
+        # Validate Output folder
+        output_folder_path = self.get_output_folder_path()
+        if not output_folder_path:
+            error_msg.append("No output folder selected.")
+        elif not os.path.isabs(output_folder_path):
+            error_msg.append(f"{output_folder_path} is not an absolute path.")
+        elif not os.path.isdir(output_folder_path):
+            error_msg.append(f"{output_folder_path} is not a valid directory.")
+        # ------- end of Validate Output folder
+
+        is_ready = len(error_msg) == 0
+
+        return is_ready, error_msg
+
+    def is_valid_folder_path(self, path : str) -> bool:
+        # Empty string is not a valid folder path
+        if not path:
+            return False
+
+        # Check if it's an absolute path and points to a directory
+        return os.path.isabs(path) and os.path.isdir(path)
+
+    def is_valid_xlsx_file_full_path(self, path : str) -> bool:
+        # Empty string is not valid
+        if not path:
+            return False
+        
+        # Must be absolute path and end with .xlsx
+        return os.path.isabs(path) and path.lower().endswith(".xlsx")
+    
     def get_adp_file_full_path(self):
         return self.adp_file_path_textedit.text()
     
@@ -157,9 +228,6 @@ class MyWindow(QWidget):
     def get_selected_insurance_plan_type_index(self):
         return self.insurance_plan_type_combobox.currentIndex()
 
-
-
-
     def get_excel_file_from_user(self):
         root = tk.Tk()
         root.withdraw()
@@ -173,10 +241,9 @@ class MyWindow(QWidget):
         return folder_path
 
 
-
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MyWindow()
+    logger = Logger()
+    window = MyWindow(logger)
     window.show()
     sys.exit(app.exec_())
