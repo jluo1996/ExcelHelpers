@@ -3,7 +3,6 @@ import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit, QLabel, QComboBox, QDesktopWidget, QTextEdit
 import tkinter as tk
 from tkinter import filedialog
-from AdpEmployee import AdpEmployee
 from InsuranceStatusHelper import InsuranceStatusHelper
 from InsuranceStatusHelperEnum import INSURANCE_PROVIDER_ENUM, PLAN_TYPE_ENUM
 from logger import Logger
