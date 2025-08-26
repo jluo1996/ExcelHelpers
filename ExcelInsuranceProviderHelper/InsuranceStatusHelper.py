@@ -129,7 +129,7 @@ class InsuranceStatusHelper:
         elif insurance_provider_type == INSURANCE_PROVIDER_ENUM.BFS:
             return self._get_status_report_for_bfs(adp_file_full_path, insurance_file_full_path, plan_type)
         elif insurance_provider_type == INSURANCE_PROVIDER_ENUM.BSS:
-            return self._get_status_report_for_bss(adp_file_full_path, insurance_file_full_path, plan_type)
+            return self._get_status_report_for_bfs(adp_file_full_path, insurance_file_full_path, plan_type) # use the BFS method since format and logic is the same
         else:
             return None
 
@@ -204,72 +204,6 @@ class InsuranceStatusHelper:
         self._log_info(f"New dataframe populated. Row count: {len(final_df)}.")
         return final_df
     
-    # This method is basically doing the same thing as get_status_report_for_bfs since both bfs and bss have the same format
-    def _get_status_report_for_bss(self, adp_file_full_path : str, bss_file_full_path : str, plan_type: PLAN_TYPE_ENUM) -> pd.DataFrame:
-        adp_xls = pd.ExcelFile(adp_file_full_path) # read it as excel file first in case there are more than 1 sheet
-        adp_df = pd.read_excel(adp_xls, ADP_SHEET_NAME)
-        adp_df = self._filter_by_columns(adp_df, [ADP_PLAN_TYPE_COLUMN], [plan_type.get_string()]) # keep only row with the given plan_type
-
-        bss_xls = pd.ExcelFile(bss_file_full_path) # read it as excel file first in case there are more than 1 sheet
-        bss_df = pd.read_excel(bss_xls, BSS_SHEET_NAME)
-
-        final_df = pd.DataFrame(columns = [ADP_NAME_COLUMN, ADP_DATE_OF_BIRTH_COLUMN, ADP_HIRE_DATE_COLUMN, ADP_TERMINATION_DATE_COLUMN, "Comments"])   # Initialize the final DataFrame to store results
-
-        new_comment_key = INSURANCE_PROVIDER_ENUM.BSS.get_string()
-
-        for adp_row_index, adp_row in adp_df.iterrows():
-            new_comments = {new_comment_key : ""}
-            employee_fullname = adp_row[ADP_NAME_COLUMN] # Format: last, first
-            employee_date_of_birth = self._get_excel_serial_date(adp_row[ADP_DATE_OF_BIRTH_COLUMN]) # ADP always have "Month/Day/Year". Need to convert it first
-            employee_last_name, employee_first_name = self._get_last_and_first_name(employee_fullname)
-
-            same_employee_in_bss_df = self._filter_by_columns(bss_df, [BSS_FIRST_NAME_COLUMN, BSS_LAST_NAME_COLUMN, BSS_DATE_OF_BIRTH_COLUMN], [employee_first_name, employee_last_name, employee_date_of_birth])
-
-            if len(same_employee_in_bss_df) == 0:
-                new_comment_to_add = MATCHING_STATUS_ENUM.EXIST_ONLY_IN_ADP.get_string()
-            else:
-                new_comment_to_add = None
-                found = False
-                if adp_row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.ACTIVE.get_string():
-                    for bss_row_index, bss_row in same_employee_in_bss_df.iterrows():
-                        adp_hire_date = self._get_excel_serial_date(adp_row[ADP_HIRE_DATE_COLUMN])
-                        bss_hire_date = bss_row[BSS_DATE_OF_HIRE_COLUMN]
-                        if adp_hire_date == bss_hire_date:
-                            if found:
-                                new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.get_string()
-                                break
-                            else:
-                                new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
-                                found = True
-                    if not found:
-                        new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_START_DATE.get_string()
-                elif adp_row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.INACTIVE.get_string(): # Use elif instead because cannot assume there are only Active/Inactive 
-                    for bss_row_index, bss_row in same_employee_in_bss_df.iterrows():
-                            adp_termination_date = self._get_excel_serial_date(adp_row[ADP_TERMINATION_DATE_COLUMN])
-                            bss_termination_date = bss_row[BSS_TERMINATION_DATE_COLUMN]
-                            if adp_termination_date == bss_termination_date:
-                                if found:
-                                    new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.get_string()
-                                    break
-                                else:
-                                    new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
-                                    found = True
-                    if not found:
-                        new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_END_DATE.get_string()
-
-            new_comments[new_comment_key] += new_comment_to_add
-                    
-            new_row = {ADP_NAME_COLUMN : adp_row[ADP_NAME_COLUMN], 
-                   ADP_DATE_OF_BIRTH_COLUMN : adp_row[ADP_DATE_OF_BIRTH_COLUMN], 
-                   ADP_HIRE_DATE_COLUMN : adp_row[ADP_HIRE_DATE_COLUMN],
-                    ADP_TERMINATION_DATE_COLUMN : adp_row[ADP_TERMINATION_DATE_COLUMN], 
-                    ADP_PLAN_TYPE_COLUMN: plan_type.get_string(),
-                    "Comments" : new_comments}
-
-            final_df = pd.concat([final_df, pd.DataFrame([new_row])], ignore_index=True) # Append the new row to the final DataFrame
-            
-        return final_df
- 
     def _get_last_and_first_name(self, full_name: str) -> tuple[str, str]:
         """
         full name is in format: "Last, First"
