@@ -92,6 +92,7 @@ class MyWindow(QWidget):
 
         # Log area
         self.log_textedit = QTextEdit()
+        self.log_textedit.setReadOnly(True)
 
 
 
