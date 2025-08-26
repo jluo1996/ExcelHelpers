@@ -36,7 +36,8 @@ class MATCHING_STATUS_ENUM(Enum):
     DUPLICATE_FOUND = 1
     MISMATCHING_START_DATE = 2
     MISMATCHING_END_DATE = 3
-    NOT_EXIST = 4
+    EXIST_ONLY_IN_ADP = 4
+    NEED_TO_BE_IN_ADP = 5
 
     def get_string(self):
         return {
@@ -44,7 +45,8 @@ class MATCHING_STATUS_ENUM(Enum):
             MATCHING_STATUS_ENUM.DUPLICATE_FOUND: "Duplicate Found",
             MATCHING_STATUS_ENUM.MISMATCHING_START_DATE: "Mismatching Start Date",
             MATCHING_STATUS_ENUM.MISMATCHING_END_DATE: "Mismatching End Date",
-            MATCHING_STATUS_ENUM.NOT_EXIST: "Not Exist"
+            MATCHING_STATUS_ENUM.EXIST_ONLY_IN_ADP: "Exist only in ADP",
+            MATCHING_STATUS_ENUM.NEED_TO_BE_IN_ADP: "Need to be in ADP"
         }[self]
 
 

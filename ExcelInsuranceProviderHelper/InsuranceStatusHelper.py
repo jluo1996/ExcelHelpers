@@ -42,13 +42,19 @@ BFS_SHEET_NAME = "bfs"
 BSS_SHEET_NAME = "bss"
 
 class GenericWorker(QThread):
-    def __init__(self, func):
+    def __init__(self, func, logger : Logger = None):
         super().__init__()
 
         self.func = func
+        self.logger = logger
 
     def run(self):
-        self.func()
+        try:
+            self.func() 
+        except Exception as e:
+            if self.logger is not None:
+                self.logger.log_error(f"Exception is caught: {e}")
+
 
 
 """
@@ -129,74 +135,70 @@ class InsuranceStatusHelper:
 
     def _get_status_report_for_bfs(self, adp_file_full_path : str, bfs_file_full_path : str, plan_type: PLAN_TYPE_ENUM) -> pd.DataFrame:
         self._log_info(f"Retriving dataframe from {adp_file_full_path}...")
-        adp_xls = pd.ExcelFile(adp_file_full_path) # read it as excel file first in case there are more than 1 sheet
-        adp_df = pd.read_excel(adp_xls, ADP_SHEET_NAME)
+        adp_df = pd.read_excel(adp_file_full_path, header=None) # Assuming only one sheet in the excel file
+        header_row_index = adp_df[adp_df.iloc[:, 5] == ADP_HIRE_DATE_COLUMN].index[0] # Find the header row (where column F has "HIRE DATE")
+        adp_df = pd.read_excel(adp_file_full_path, header=header_row_index) 
         self._log_info(f"Finish retriving dataframe from {adp_file_full_path}. Row count: {len(adp_df)}.")
 
         self._log_info(f"Filtering rows with only {plan_type.get_string()}...")
-        adp_df = self._filter_by_columns(adp_df, [ADP_PLAN_TYPE_COLUMN], [plan_type.get_string()]) # keep only row with the given plan_type
-        self._log_info(f"Done filtering. Row count: {len(adp_df)}.")
+        adp_df_with_same_plan_type = self._filter_by_columns(adp_df, [ADP_PLAN_TYPE_COLUMN], [plan_type.get_string()]) # keep only row with the given plan_type
+        self._log_info(f"Done filtering. Row count: {len(adp_df_with_same_plan_type)}.")
 
         self._log_info(f"Retriving dataframe from {bfs_file_full_path}...")
-        bfs_xls = pd.ExcelFile(bfs_file_full_path) # read it as excel file first in case there are more than 1 sheet
-        bfs_df = pd.read_excel(bfs_xls, BFS_SHEET_NAME)
+        bfs_df = pd.read_excel(bfs_file_full_path, header=None) # Assuming only one sheet in the excel file
+        header_row_index = bfs_df[bfs_df.iloc[:, 2] == BFS_FIRST_NAME_COLUMN].index[0] # Find the header row (where column C has "First Name")
+        bfs_df = pd.read_excel(bfs_file_full_path, header=header_row_index)
         self._log_info(f"Finish retriving dataframe from {bfs_file_full_path}. Row count: {len(bfs_df)}.")
 
-        final_df = pd.DataFrame(columns = [ADP_NAME_COLUMN, ADP_DATE_OF_BIRTH_COLUMN, ADP_HIRE_DATE_COLUMN, ADP_TERMINATION_DATE_COLUMN, "Comments"])   # Initialize the final DataFrame to store results
-
-        new_comment_key = INSURANCE_PROVIDER_ENUM.BFS.get_string()
-
+        final_df = pd.DataFrame(columns = [BFS_FIRST_NAME_COLUMN, BFS_LAST_NAME_COLUMN, BFS_DATE_OF_BIRTH_COLUMN, BFS_DATE_OF_HIRE_COLUMN, BFS_TERMINATION_DATE_COLUMN, ADP_PLAN_TYPE_COLUMN ,"Comments"])   # Initialize the final DataFrame to store results
+        
         self._log_info("Populating new dataframe with status...")
+        seen_rows = set()
+        for bfs_row_index, bfs_row in bfs_df.iterrows():
+            new_comment_to_add = None
 
-        for adp_row_index, adp_row in adp_df.iterrows():
-            new_comments = {new_comment_key : ""}
-            employee_fullname = adp_row[ADP_NAME_COLUMN] # Format: last, first
-            employee_date_of_birth = self._get_excel_serial_date(adp_row[ADP_DATE_OF_BIRTH_COLUMN]) # ADP always have "Month/Day/Year". Need to convert it first
-            employee_last_name, employee_first_name = self._get_last_and_first_name(employee_fullname)
-
-            same_employee_in_bfs_df = self._filter_by_columns(bfs_df, [BFS_FIRST_NAME_COLUMN, BFS_LAST_NAME_COLUMN, BFS_DATE_OF_BIRTH_COLUMN], [employee_first_name, employee_last_name, employee_date_of_birth])
-
-            if len(same_employee_in_bfs_df) == 0:
-                new_comment_to_add = MATCHING_STATUS_ENUM.NOT_EXIST.get_string()
+            employee_first_name_bfs = bfs_row[BFS_FIRST_NAME_COLUMN]
+            employee_last_name_bfs = bfs_row[BFS_LAST_NAME_COLUMN]
+            employee_date_of_birth_bfs = bfs_row[BFS_DATE_OF_BIRTH_COLUMN]
+            unique_key = (employee_first_name_bfs, employee_last_name_bfs, employee_date_of_birth_bfs)
+            if unique_key in seen_rows:
+                new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.get_string()
             else:
-                new_comment_to_add = None
-                found = False
-                if adp_row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.ACTIVE.get_string():
-                    for bfs_row_index, bfs_row in same_employee_in_bfs_df.iterrows():
-                        adp_hire_date = self._get_excel_serial_date(adp_row[ADP_HIRE_DATE_COLUMN])
-                        bfs_hire_date = bfs_row[BFS_DATE_OF_HIRE_COLUMN]
-                        if adp_hire_date == bfs_hire_date:
-                            if found:
-                                new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.get_string()
-                                break
-                            else:
-                                new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
-                                found = True
-                    if not found:
-                        new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_START_DATE.get_string()
-                elif adp_row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.INACTIVE.get_string(): # Use elif instead because cannot assume there are only Active/Inactive 
-                    for bfs_row_index, bfs_row in same_employee_in_bfs_df.iterrows():
-                            adp_termination_date = self._get_excel_serial_date(adp_row[ADP_TERMINATION_DATE_COLUMN])
-                            bfs_termination_date = bfs_row[BFS_TERMINATION_DATE_COLUMN]
-                            if adp_termination_date == bfs_termination_date:
-                                if found:
-                                    new_comment_to_add = MATCHING_STATUS_ENUM.DUPLICATE_FOUND.get_string()
-                                    break
-                                else:
-                                    new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
-                                    found = True
-                    if not found:
-                        new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_END_DATE.get_string()
+                seen_rows.add(unique_key)
 
-            new_comments[new_comment_key] += new_comment_to_add
-                    
-            new_row = {ADP_NAME_COLUMN : adp_row[ADP_NAME_COLUMN], 
-                   ADP_DATE_OF_BIRTH_COLUMN : adp_row[ADP_DATE_OF_BIRTH_COLUMN], 
-                   ADP_HIRE_DATE_COLUMN : adp_row[ADP_HIRE_DATE_COLUMN],
-                    ADP_TERMINATION_DATE_COLUMN : adp_row[ADP_TERMINATION_DATE_COLUMN], 
+            found_in_adp = False
+            
+            for adp_row_index, adp_row in adp_df_with_same_plan_type.iterrows():
+                employee_full_name_adp = adp_row[ADP_NAME_COLUMN]
+                employee_last_name_adp, employee_first_name_adp  = self._get_last_and_first_name(employee_full_name_adp)
+                employee_date_of_birth_adp = self._get_excel_serial_date(adp_row[ADP_DATE_OF_BIRTH_COLUMN]) # ADP always have "Month/Day/Year". Need to convert it first
+                
+                if unique_key == (employee_first_name_adp, employee_last_name_adp, employee_date_of_birth_adp): # Found it at adp
+                    found_in_adp = True
+                    new_comment_to_add = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
+
+                    if adp_row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.ACTIVE.get_string():
+                        hire_date_adp = self._get_excel_serial_date(adp_row[ADP_HIRE_DATE_COLUMN])
+                        hire_date_bfs = bfs_row[BFS_DATE_OF_HIRE_COLUMN]
+                        if hire_date_adp != hire_date_bfs:
+                            new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_START_DATE.get_string()
+                    elif adp_row[ADP_ENROLLMENT_STATUS_COLUMN] == ENROLLMENT_STATUS_ENUM.INACTIVE.get_string():
+                        termination_date_adp = self._get_excel_serial_date(adp_row[ADP_TERMINATION_DATE_COLUMN])
+                        termination_date_bfs = bfs_row[BFS_TERMINATION_DATE_COLUMN]
+                        if termination_date_adp != termination_date_bfs:
+                            new_comment_to_add = MATCHING_STATUS_ENUM.MISMATCHING_END_DATE.get_string()
+                    break # No need to continue since each employee is unique in ADP
+
+            if not found_in_adp:
+                new_comment_to_add = MATCHING_STATUS_ENUM.NEED_TO_BE_IN_ADP.get_string()
+
+            new_row = {BFS_FIRST_NAME_COLUMN : bfs_row[BFS_FIRST_NAME_COLUMN],
+                        BFS_LAST_NAME_COLUMN : bfs_row[BFS_LAST_NAME_COLUMN], 
+                   BFS_DATE_OF_BIRTH_COLUMN : bfs_row[BFS_DATE_OF_BIRTH_COLUMN], 
+                   BFS_DATE_OF_HIRE_COLUMN : bfs_row[BFS_DATE_OF_HIRE_COLUMN],
+                    BFS_TERMINATION_DATE_COLUMN : bfs_row[BFS_TERMINATION_DATE_COLUMN], 
                     ADP_PLAN_TYPE_COLUMN: plan_type.get_string(),
-                    "Comments" : new_comments}
-
+                    "Comments" : new_comment_to_add}
             final_df = pd.concat([final_df, pd.DataFrame([new_row])], ignore_index=True) # Append the new row to the final DataFrame
             
         self._log_info(f"New dataframe populated. Row count: {len(final_df)}.")
@@ -224,7 +226,7 @@ class InsuranceStatusHelper:
             same_employee_in_bss_df = self._filter_by_columns(bss_df, [BSS_FIRST_NAME_COLUMN, BSS_LAST_NAME_COLUMN, BSS_DATE_OF_BIRTH_COLUMN], [employee_first_name, employee_last_name, employee_date_of_birth])
 
             if len(same_employee_in_bss_df) == 0:
-                new_comment_to_add = MATCHING_STATUS_ENUM.NOT_EXIST.get_string()
+                new_comment_to_add = MATCHING_STATUS_ENUM.EXIST_ONLY_IN_ADP.get_string()
             else:
                 new_comment_to_add = None
                 found = False
@@ -290,30 +292,30 @@ class InsuranceStatusHelper:
         return (dt - excel_start).days
     
     def _filter_by_columns(self, df: pd.DataFrame, column_name: list[str], values: list[str]) -> pd.DataFrame:
-        """
-        Filters a pandas DataFrame by matching specified columns to given values.
-        Args:
-            df (pd.DataFrame): The DataFrame to filter.
-            column_name (list[str]): List of column names to filter by.
-            values (list): List of values to match for each corresponding column.
-        Returns:
-            pd.DataFrame: A filtered DataFrame containing rows where each specified column matches the corresponding value.
-        Raises:
-            ValueError: If the length of column_name and values lists do not match.
-        Example:
-            >>> filter_by_columns(df, ['status', 'type'], ['active', 'premium'])
-            Returns all rows where df['status'] == 'active' and df['type'] == 'premium'.
-        """
-        if len(column_name) != len(values):
-            raise ValueError("columns and values must have the same length")
+        final_df = pd.DataFrame(columns=df.columns)
+        for row_index, row in df.iterrows():
+            matching = True
+            for i in range(len(column_name)):
+                name = row[column_name[i]]
+                value = values[i]
+                if name != value:
+                    matching = False
+            
+            if matching:
+                final_df = pd.concat([final_df, pd.DataFrame([row])], ignore_index=True)
 
-        # Start with a mask of all True
-        mask = pd.Series([True] * len(df))
+        return final_df
+    
 
-        for col, val in zip(column_name, values):
-            mask &= (df[col] == val)  # Combine conditions
-
-        return df[mask]
+# helper = InsuranceStatusHelper(None, None, None, None, None, None)
+# # Example DataFrame
+# df = pd.DataFrame({
+#     "Name": ["Alice", "Bob"],
+#     "Age": [25, 30],
+#     "City": ["NY", "LA"]
+# })
+# output = helper._filter_by_columns(df, ["Name", "Age"], ["Alice", 25])
+# print(output)
         
 
 

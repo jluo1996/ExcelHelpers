@@ -154,7 +154,7 @@ class MyWindow(QWidget):
         plan_type = PLAN_TYPE_ENUM(self.get_selected_insurance_plan_type_index())
         output_folder = self.get_output_folder_path()
         helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, insurance_provider_type, plan_type, output_folder, self.logger)
-        helper.generate_status_report(True)
+        helper.generate_status_report(False)
 
     def insurance_file_browse_button_clicked(self):
         insurance_file_full_path = self.get_excel_file_from_user()

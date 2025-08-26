@@ -8,7 +8,7 @@ class Logger():
 
     def log_info(self, msg, scroll_to_bottom : bool = True):
         if self.text_edit:
-            self.text_edit.append(msg)   # Use default font color
+            self._append_new_line(msg, 'black')   # Use default font color
             if scroll_to_bottom:
                 self._scroll_to_bottom()
         self._print(msg, Fore.GREEN)
