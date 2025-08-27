@@ -18,16 +18,52 @@ class PLAN_TYPE_ENUM(Enum):
         }[self]
 
 # Define an enumeration for different insurance providers
-class INSURANCE_PROVIDER_ENUM(Enum):
+class INSURANCE_FORMAT_ENUM(Enum):
     CIGNA = 0
     BSS = 1
     BFS = 2
 
     def get_string(self):
         return {
-            INSURANCE_PROVIDER_ENUM.CIGNA : "Cigna",
-            INSURANCE_PROVIDER_ENUM.BSS : "bss",
-            INSURANCE_PROVIDER_ENUM.BFS : "bfs"
+            #INSURANCE_PROVIDER_ENUM.CIGNA : "Cigna",
+            INSURANCE_FORMAT_ENUM.BSS : "bss",
+            INSURANCE_FORMAT_ENUM.BFS : "bfs"
+        }[self]
+    
+    def get_company_code_enum(self):
+        """
+        ReturnL: list of COMPANY_CODE_ENUM
+        """
+        match self:
+            case INSURANCE_FORMAT_ENUM.BSS:
+                return [COMPANY_CODE_ENUM.E30]
+            case INSURANCE_FORMAT_ENUM.BFS:
+                return [COMPANY_CODE_ENUM.E30, COMPANY_CODE_ENUM.E9Y]
+            case _:
+                return [COMPANY_CODE_ENUM.UNKNOWN]
+            
+    def get_company_code_string(self):
+        """
+        Return: list[str]
+        """
+        enums = self.get_company_code_enum()
+        output = []
+        for enum in enums:
+            output.append(enum.get_string())
+        return output
+    
+class COMPANY_CODE_ENUM(Enum):
+    UNKNOWN = -1
+    E30 = 0 # BFS
+    E9V = 1 # BSS
+    E9Y = 2 # BFS
+
+    def get_string(self):
+        return {
+            COMPANY_CODE_ENUM.UNKNOWN: "Unknown",
+            COMPANY_CODE_ENUM.E30: "E30",
+            COMPANY_CODE_ENUM.E9V: "E9V",
+            COMPANY_CODE_ENUM.E9Y: "E9Y"
         }[self]
 
 # Define an enumeration for different matching statuses

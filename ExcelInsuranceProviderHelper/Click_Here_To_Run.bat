@@ -47,6 +47,20 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 REM ------------------------------
+REM Check/install openpyxl
+REM ------------------------------
+python -c "import openpyxl" 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo openpyxl not found. Installing...
+    pip install openpyxl
+    if %ERRORLEVEL% NEQ 0 (
+        echo Failed to install openpyxl! Please install it manually.
+        pause
+        exit /b 1
+    )
+)
+
+REM ------------------------------
 REM Start the PyQt5 app without console
 REM Start with pythonw.exe to hide python console
 REM ------------------------------

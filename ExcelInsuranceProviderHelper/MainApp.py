@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHB
 import tkinter as tk
 from tkinter import filedialog
 from InsuranceStatusHelper import InsuranceStatusHelper
-from InsuranceStatusHelperEnum import INSURANCE_PROVIDER_ENUM, PLAN_TYPE_ENUM
+from InsuranceStatusHelperEnum import INSURANCE_FORMAT_ENUM, PLAN_TYPE_ENUM
 from logger import Logger
 
 WINDOW_WIDTH = 600
@@ -14,7 +14,7 @@ class MyWindow(QWidget):
     def __init__(self, logger : Logger = None):
         super().__init__()
 
-        self.logger  = logger
+        self.logger = logger
         self._init_UI()
 
         self.logger.text_edit = self.log_textedit
@@ -68,7 +68,7 @@ class MyWindow(QWidget):
         insurance_provider_label = QLabel()
         insurance_provider_label.setText("Select Insurance Provider:")
         self.insurance_provider_combobox = QComboBox()
-        for provider in INSURANCE_PROVIDER_ENUM:
+        for provider in INSURANCE_FORMAT_ENUM:
             self.insurance_provider_combobox.addItem(provider.name, provider.value)
 
         insurance_provider_h_layout = QHBoxLayout()
@@ -150,7 +150,7 @@ class MyWindow(QWidget):
         
         adp_file_path = self.get_adp_file_full_path()
         insurance_file_path = self.get_insurance_file_path()
-        insurance_provider_type = INSURANCE_PROVIDER_ENUM(self.get_selected_insurance_provider_index())
+        insurance_provider_type = INSURANCE_FORMAT_ENUM(self.get_selected_insurance_provider_index())
         plan_type = PLAN_TYPE_ENUM(self.get_selected_insurance_plan_type_index())
         output_folder = self.get_output_folder_path()
         helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, insurance_provider_type, plan_type, output_folder, self.logger)

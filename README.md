@@ -14,6 +14,7 @@ This project provides a GUI tool to assist with processing and validating insura
 - PyQt5
 - pandas
 - colorama
+- openpyxl
 - tkinter (standard with Python on Windows)
 
 ## How to Run
@@ -21,13 +22,13 @@ This project provides a GUI tool to assist with processing and validating insura
 1. Double-click `Click_Here_To_Run.bat` in the `ExcelInsuranceProviderHelper` folder.
    - This script will:
      - Navigate to the correct folder
-     - Check for and install required dependencies (`PyQt5`, `pandas`, `colorama`) automatically if missing
+   - Check for and install required dependencies (`PyQt5`, `pandas`, `colorama`, `openpyxl`) automatically if missing
      - Launch the application using `pythonw.exe` (no console window)
 
 ### Manual method
 1. Install dependencies:
    ```bash
-   pip install PyQt5 pandas colorama
+   pip install PyQt5 pandas colorama openpyxl
    ```
 2. Run the application:
    ```bash
