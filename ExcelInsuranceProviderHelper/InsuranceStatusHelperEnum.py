@@ -25,7 +25,7 @@ class INSURANCE_FORMAT_ENUM(Enum):
 
     def get_string(self):
         return {
-            #INSURANCE_PROVIDER_ENUM.CIGNA : "Cigna",
+            INSURANCE_FORMAT_ENUM.CIGNA : "Cigna",
             INSURANCE_FORMAT_ENUM.BSS : "bss",
             INSURANCE_FORMAT_ENUM.BFS : "bfs"
         }[self]
