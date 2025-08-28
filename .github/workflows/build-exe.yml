@@ -23,3 +23,4 @@ jobs:
       with:
         name: Excel_Insurance_Provider_Helper
         path: dist/Excel_Insurance_Provider_Helper.exe
+        retention-days: 90  # artifact will be kept for 90 days. Default was already 90 for free version. 180 days for paied version.
