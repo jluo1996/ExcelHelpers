@@ -10,7 +10,7 @@ This project provides a GUI tool to assist with processing and validating insura
 
 
 ## Requirements
-- Python 3.9+
+- Python 3.13+
 - PyQt5
 - pandas
 - colorama
