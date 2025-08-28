@@ -1,0 +1,24 @@
+name: Build EXE
+
+on:
+  push:
+    branches:
+      - main  # or whatever branch you want to trigger on
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Run PyInstaller with repo Python
+      run: |
+        ./python313/python.exe -m PyInstaller --onefile your_script.py
+
+    - name: Upload EXE as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: my-exe
+        path: dist/*.exe
