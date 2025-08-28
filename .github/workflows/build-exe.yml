@@ -11,6 +11,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
     - name: Print specific directory paths
       run: |
         # Print current directory
@@ -21,8 +24,7 @@ jobs:
         Write-Host "`nPath to folder1:"
         Resolve-Path .\ExcelInsuranceProviderHelper\Python313
         
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    
 
     - name: Run PyInstaller with repo Python
       run: |
