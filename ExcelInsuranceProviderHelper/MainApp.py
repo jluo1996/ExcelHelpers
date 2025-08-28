@@ -163,7 +163,6 @@ class MyWindow(QWidget):
     def get_is_ready_to_generate_status_report(self) -> tuple[bool, list[str]]:
         error_msg = []
 
-
         # Validate ADP file
         adp_file_full_path = self.get_adp_file_full_path()
         if not adp_file_full_path:

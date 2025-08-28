@@ -52,6 +52,18 @@ class INSURANCE_FORMAT_ENUM(Enum):
             output.append(enum.get_string())
         return output
     
+class EMPLOYEE_STATUS_ENUM(Enum):
+    ACTIVE = 0
+    TERMINATED = 1
+    LEAVE = 2
+
+    def get_string(self):
+        return {
+            EMPLOYEE_STATUS_ENUM.ACTIVE: "Active",
+            EMPLOYEE_STATUS_ENUM.TERMINATED: "Terminated",
+            EMPLOYEE_STATUS_ENUM.LEAVE: "Leave"
+        }[self]
+    
 class COMPANY_CODE_ENUM(Enum):
     UNKNOWN = -1
     E30 = 0 # BFS
