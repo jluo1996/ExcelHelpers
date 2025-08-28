@@ -11,17 +11,22 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: List current directory
+    - name: Print specific directory paths
       run: |
+        # Print current directory
+        Write-Host "Current directory:"
         Get-Location
-        Get-ChildItem -Force
+
+        # Print folder1 full path
+        Write-Host "`nPath to folder1:"
+        Resolve-Path .\ExcelInsuranceProviderHelper\Python313
         
     - name: Checkout repository
       uses: actions/checkout@v3
 
     - name: Run PyInstaller with repo Python
       run: |
-        ./python313/python.exe -m PyInstaller --onefile your_script.py
+        ./ExcelInsuranceProviderHelper\Python313/python.exe -m PyInstaller --onefile your_script.py
 
     - name: Upload EXE as artifact
       uses: actions/upload-artifact@v4
