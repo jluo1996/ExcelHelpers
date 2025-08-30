@@ -30,7 +30,6 @@ class MyWindow(QWidget):
         self.adp_file_path_textedit.setReadOnly(True)
         self.adp_file_path_textedit.setPlaceholderText("Select ADP file")
         adp_file_browse_button = QPushButton("Browse")
-        adp_file_browse_button.clicked.connect(self.adp_file_browse_button_clicked)
 
         input_file_h_layout = QHBoxLayout()
         input_file_h_layout.addWidget(self.adp_file_path_textedit)
@@ -43,7 +42,6 @@ class MyWindow(QWidget):
         self.insurance_file_path_textedit.setReadOnly(True)
         self.insurance_file_path_textedit.setPlaceholderText("Select insurance file")
         insurance_file_browse_button = QPushButton("Browse")
-        insurance_file_browse_button.clicked.connect(self.insurance_file_browse_button_clicked)
 
         insurance_file_h_layout = QHBoxLayout()
         insurance_file_h_layout.addWidget(self.insurance_file_path_textedit)
@@ -56,7 +54,6 @@ class MyWindow(QWidget):
         self.output_folder_path_textedit.setReadOnly(True)
         self.output_folder_path_textedit.setPlaceholderText("Select output folder")
         output_folder_path_button = QPushButton("Browse")
-        output_folder_path_button.clicked.connect(self.output_folder_path_button_clicked)
 
         output_folder_path_h_layout = QHBoxLayout()
         output_folder_path_h_layout.addWidget(self.output_folder_path_textedit)
@@ -78,13 +75,15 @@ class MyWindow(QWidget):
 
 
         # Insurance Plan Type
+        
         insurance_plan_type_label = QLabel()
         insurance_plan_type_label.setText("Select Insurance Type:")
         self.insurance_plan_type_combobox = QComboBox()
         for plan_type in PLAN_TYPE_ENUM:
-            self.insurance_plan_type_combobox.addItem(plan_type.name, plan_type.value)
+            self.insurance_plan_type_combobox.addItem(plan_type.name)
 
-        insurance_plan_type_h_layout = QHBoxLayout()
+        self.insurance_plan_type_container = QWidget()
+        insurance_plan_type_h_layout = QHBoxLayout(self.insurance_plan_type_container)
         insurance_plan_type_h_layout.addWidget(insurance_plan_type_label)
         insurance_plan_type_h_layout.addWidget(self.insurance_plan_type_combobox)
         # ---------- end of Insurance Plan Type
@@ -95,25 +94,34 @@ class MyWindow(QWidget):
         self.log_textedit.setReadOnly(True)
 
 
-
-
         # Function buttons
         generate_status_report_button = QPushButton("Generate Status Report")
-        generate_status_report_button.clicked.connect(self.generate_status_report_button_clicked)
 
         function_button_h_box = QHBoxLayout() # Keep this layout for more functions in the future
         function_button_h_box.addWidget(generate_status_report_button)
         # ---------- end of Function buttons
+
+
+        # Command connect
+        adp_file_browse_button.clicked.connect(self.adp_file_browse_button_clicked)
+        insurance_file_browse_button.clicked.connect(self.insurance_file_browse_button_clicked)
+        output_folder_path_button.clicked.connect(self.output_folder_path_button_clicked)
+        self.insurance_provider_combobox.currentIndexChanged.connect(self.insurance_provider_selection_changed)
+        generate_status_report_button.clicked.connect(self.generate_status_report_button_clicked)
+        # --------- end of Command connect
 
         main_v_layout = QVBoxLayout()
         main_v_layout.addLayout(input_file_h_layout)
         main_v_layout.addLayout(insurance_file_h_layout)
         main_v_layout.addLayout(output_folder_path_h_layout)
         main_v_layout.addLayout(insurance_provider_h_layout)
-        main_v_layout.addLayout(insurance_plan_type_h_layout)
+        main_v_layout.addWidget(self.insurance_plan_type_container)
         main_v_layout.addWidget(self.log_textedit)
         main_v_layout.addLayout(function_button_h_box)
         self.setLayout(main_v_layout)
+
+
+        self.insurance_provider_selection_changed(self.insurance_provider_combobox.currentIndex()) # manually trigger index change
 
     def center(self):
         """
@@ -134,6 +142,10 @@ class MyWindow(QWidget):
     def output_folder_path_button_clicked(self):
         output_folder_path = self.get_folder_from_user()
         self.output_folder_path_textedit.setText(output_folder_path)
+    
+    def insurance_provider_selection_changed(self, index):
+        if self.insurance_plan_type_combobox:
+            self.insurance_plan_type_container.setVisible(not (index == INSURANCE_FORMAT_ENUM.CIGNA.value))
 
     def adp_file_browse_button_clicked(self):
         adp_file_full_path = self.get_excel_file_from_user()
