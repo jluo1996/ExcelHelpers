@@ -74,6 +74,18 @@ class MyWindow(QWidget):
         # ---------- end of insurance provider
 
 
+        # Insurance ID file 
+        self.insurance_id_ile_path_textedit = QLineEdit()
+        self.insurance_id_ile_path_textedit.setReadOnly(True)
+        self.insurance_id_ile_path_textedit.setPlaceholderText("Select insurance ID file")
+        insurance_id_file_browse_button = QPushButton("Select ID file")
+
+        insurance_id_file_h_layout = QHBoxLayout()
+        insurance_id_file_h_layout.addWidget(self.insurance_id_ile_path_textedit)
+        insurance_id_file_h_layout.addWidget(insurance_id_file_browse_button)
+        # ---------- end of insurance file  
+
+
         # Insurance Plan Type
         
         insurance_plan_type_label = QLabel()
@@ -107,6 +119,7 @@ class MyWindow(QWidget):
         insurance_file_browse_button.clicked.connect(self.insurance_file_browse_button_clicked)
         output_folder_path_button.clicked.connect(self.output_folder_path_button_clicked)
         self.insurance_provider_combobox.currentIndexChanged.connect(self.insurance_provider_selection_changed)
+        insurance_id_file_browse_button.clicked.connect(self.insurance_id_file_browse_button_clicked)
         generate_status_report_button.clicked.connect(self.generate_status_report_button_clicked)
         # --------- end of Command connect
 
@@ -115,6 +128,7 @@ class MyWindow(QWidget):
         main_v_layout.addLayout(insurance_file_h_layout)
         main_v_layout.addLayout(output_folder_path_h_layout)
         main_v_layout.addLayout(insurance_provider_h_layout)
+        main_v_layout.addLayout(insurance_id_file_h_layout)
         main_v_layout.addWidget(self.insurance_plan_type_container)
         main_v_layout.addWidget(self.log_textedit)
         main_v_layout.addLayout(function_button_h_box)
@@ -147,9 +161,15 @@ class MyWindow(QWidget):
         if self.insurance_plan_type_combobox:
             self.insurance_plan_type_container.setVisible(not (index == INSURANCE_FORMAT_ENUM.CIGNA.value))
 
+    def insurance_id_file_browse_button_clicked(self):
+        insurance_id_file_path = self.get_excel_file_from_user()
+        if insurance_id_file_path:
+            self.insurance_id_ile_path_textedit.setText(insurance_id_file_path)
+
     def adp_file_browse_button_clicked(self):
         adp_file_full_path = self.get_excel_file_from_user()
-        self.adp_file_path_textedit.setText(adp_file_full_path)
+        if adp_file_full_path:
+            self.adp_file_path_textedit.setText(adp_file_full_path)
 
     def generate_status_report_button_clicked(self):
         proceed, error_msgs = self.get_is_ready_to_generate_status_report()
@@ -162,15 +182,17 @@ class MyWindow(QWidget):
         
         adp_file_path = self.get_adp_file_full_path()
         insurance_file_path = self.get_insurance_file_path()
+        id_file_path = self.get_insurance_id_file_path()
         insurance_provider_type = INSURANCE_FORMAT_ENUM(self.get_selected_insurance_provider_index())
         plan_type = PLAN_TYPE_ENUM(self.get_selected_insurance_plan_type_index())
         output_folder = self.get_output_folder_path()
-        helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, insurance_provider_type, plan_type, output_folder, self.logger)
+        helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, id_file_path, insurance_provider_type, plan_type, output_folder, self.logger)
         helper.generate_status_report(False)
 
     def insurance_file_browse_button_clicked(self):
         insurance_file_full_path = self.get_excel_file_from_user()
-        self.insurance_file_path_textedit.setText(insurance_file_full_path)
+        if insurance_file_full_path:
+            self.insurance_file_path_textedit.setText(insurance_file_full_path)
 
     def get_is_ready_to_generate_status_report(self) -> tuple[bool, list[str]]:
         error_msg = []
@@ -228,6 +250,9 @@ class MyWindow(QWidget):
     def get_adp_file_full_path(self):
         return self.adp_file_path_textedit.text()
     
+    def get_insurance_id_file_path(self):
+        return self.insurance_id_ile_path_textedit.text()
+    
     def get_insurance_file_path(self):
         return self.insurance_file_path_textedit.text()
     
@@ -242,8 +267,13 @@ class MyWindow(QWidget):
 
     def get_excel_file_from_user(self):
         root = tk.Tk()
+        root.geometry("+{}+{}".format(int(root.winfo_screenwidth() / 2 - root.winfo_reqwidth() / 2) - 400, int(root.winfo_screenheight() / 2 - root.winfo_reqheight() / 2) - 300))
         root.withdraw()
-        file_path = filedialog.askopenfilename(title="Select the Excel file", filetypes=[("Excel files", "*.xlsx *.xls")])
+        # TODO: to use width/height of the pyqt window
+
+        self.setEnabled(False) # disable main window
+        file_path = filedialog.askopenfilename(title="Select the Excel file", filetypes=[("Excel files", "*.xlsx *.xls")], parent=root)
+        self.setEnabled(True)
         return file_path
     
     def get_folder_from_user(self):
