@@ -1,9 +1,9 @@
-from PyQt5.QtWidgets import QTextEdit
+from PyQt5.QtWidgets import QTextBrowser
 from PyQt5.QtGui import QTextCursor
 from colorama import Fore
 
 class Logger():
-    def __init__(self, textedit : QTextEdit = None):
+    def __init__(self, textedit : QTextBrowser = None):
         self.text_edit = textedit
 
     def log_info(self, msg, scroll_to_bottom : bool = True):
@@ -37,12 +37,10 @@ class Logger():
         msg: Could be a list[str] or str
         """
         if isinstance(msg, str):
-                safe_text = msg.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                self.text_edit.append(f'<span style="color:{color};">{safe_text}</span>')
+                self.text_edit.append(f'<span style="color:{color};">{msg}</span>')
         elif isinstance(msg, list) and all(isinstance(item, str) for item in msg):
             for line in msg:
-                safe_text = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                self.text_edit.append(f'<span style="color:{color};">{safe_text}</span>')
+                self.text_edit.append(f'<span style="color:{color};">{line}</span>')
 
     def _print(self, msg, color):
         """

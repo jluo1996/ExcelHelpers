@@ -1,11 +1,12 @@
 from datetime import datetime
+from pathlib import Path
 import time
 import os
 import pandas as pd
 import re
-from InsuranceStatusHelperEnum import EMPLOYEE_STATUS_ENUM, ENROLLMENT_STATUS_ENUM, INSURANCE_FORMAT_ENUM, MATCHING_STATUS_ENUM, PLAN_TYPE_ENUM
+from InsuranceStatusHelperEnum import CIGNA_ID_RELATIONSHIP_ENUM, EMPLOYEE_STATUS_ENUM, ENROLLMENT_STATUS_ENUM, INSURANCE_FORMAT_ENUM, MATCHING_STATUS_ENUM, PLAN_TYPE_ENUM
 from logger import Logger
-from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread, QUrl
 
 # ADP sheet column names
 ADP_COMPANY_CODE_COLUMN = "COMPANY CODE"
@@ -118,7 +119,7 @@ class InsuranceStatusHelper:
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file_name = f"StatusReport_{self.insurance_provider_type.get_string()}_{self.plan_type.get_string()}_{timestamp}.xlsx"
-        output_file_full_path = os.path.join(self.output_folder, output_file_name)
+        output_file_full_path = os.path.join(Path(self.output_folder), output_file_name)
         self._create_excel_file(report_df, output_file_full_path)
 
         if __debug__:
@@ -137,7 +138,9 @@ class InsuranceStatusHelper:
 
         self._log_info(f"Creating excel file {output_file_full_name}...")
         df.to_excel(output_file_full_name, index=False)
-        self._log_info(f"Excel file {output_file_full_name} created.")
+        output_file_full_name = QUrl.fromLocalFile(output_file_full_name)
+        output_file_sentence = f'Here is a <a href="{output_file_full_name.toString()}">{output_file_full_name.toString()}</a> word.'
+        self._log_info(output_file_sentence)
 
     def _get_status_report(self, adp_file_full_path : str, insurance_file_full_path : str, id_file_full_path: str, insurance_format : INSURANCE_FORMAT_ENUM, plan_type : PLAN_TYPE_ENUM):
         if insurance_format == INSURANCE_FORMAT_ENUM.CIGNA:
@@ -153,18 +156,14 @@ class InsuranceStatusHelper:
                 return None
         
     def _get_status_report_for_cigna(self, adp_file_full_path : str, insurance_file_full_path : str, id_file_full_path : str) -> pd.DataFrame:
-        # if medical bill == 0 on Cigna and ADP has this person as "MEDICAL", return "Should not be in ADP"
-        # else if medical bill has something on cigna, and ADP is not "MEDICAL", return "Should not be in Cigna"
         adp_df = pd.read_excel(adp_file_full_path, header=None) # Assuming only one sheet in the excel file
         header_row_index = adp_df[adp_df.iloc[:, 5] == ADP_HIRE_DATE_COLUMN].index[0] # Find the header row (where column F has "HIRE DATE")
         adp_df = pd.read_excel(adp_file_full_path, header=header_row_index)       
         adp_df = adp_df[adp_df[ADP_PROVIDER_COLUMN] == INSURANCE_FORMAT_ENUM.CIGNA.get_string()] # should use a different enum that is dedicated for PROVIDER column
-        print(adp_df)
         #adp_filtered_df = adp_filtered_df.dropna(subset=[ADP_PLAN_TYPE_COLUMN]) # remove all rows with empty plan_type
         adp_filtered_df = adp_df[[ADP_NAME_COLUMN, ADP_TAX_ID_COLUMN, ADP_PLAN_TYPE_COLUMN, ADP_COVERAGE_LEVEL_VALUE_COLUMN]]
         adp_filtered_df[ADP_TAX_ID_COLUMN] = adp_filtered_df[ADP_TAX_ID_COLUMN].apply(self.keep_numbers_only)
         adp_filtered_df = adp_filtered_df.rename(columns={ADP_TAX_ID_COLUMN : CIGNA_ID_MEMBER_SSN_COLUMN})
-        print(adp_filtered_df)
 
         cigna_sheet_name = "Billing_Detail"
         insurance_df = pd.read_excel(insurance_file_full_path, cigna_sheet_name, header=11)
@@ -172,7 +171,6 @@ class InsuranceStatusHelper:
         insurance_df = insurance_df[[CIGNA_EMPLOYEE_ID_COLUMN, CIGNA_MEDICAL_POOLED_COLUMN, CIGNA_MEDICAL_UNPOOLED_COLUMN, CIGNA_DENTAL_COLUMN, CIGNA_VISION_COLUMN]]
         if not index_of_endline.empty:
             insurance_df = insurance_df.loc[:index_of_endline[0]-1] # keep everything before that row
-        print(insurance_df)
 
         cigna_id_sheet_name = "Eligibility Roster Detail"
         insurance_id_df = pd .read_excel(id_file_full_path, cigna_id_sheet_name)
@@ -180,43 +178,68 @@ class InsuranceStatusHelper:
         insurance_id_df = insurance_id_df.rename(columns={CIGNA_ID_MEMBER_ID_COLUMN : CIGNA_EMPLOYEE_ID_COLUMN})
         insurance_id_df = insurance_id_df.dropna(subset=[CIGNA_ID_MEMBER_SSN_COLUMN]) # remove all rows with empty SSN
         insurance_id_df[CIGNA_ID_MEMBER_SSN_COLUMN] = insurance_id_df[CIGNA_ID_MEMBER_SSN_COLUMN].apply(self.keep_numbers_only)
-        print(insurance_id_df)
 
         insurance_merged_df = pd.merge(insurance_df, insurance_id_df, on=[CIGNA_EMPLOYEE_ID_COLUMN], how="outer", suffixes=["_noID", "_ID"])
-        print(insurance_merged_df)
         
         merged_df = pd.merge(adp_filtered_df, insurance_merged_df, on=[CIGNA_ID_MEMBER_SSN_COLUMN], how="outer", suffixes=["_ADP", "_Cigna"])
-        print(merged_df)
 
+        medical_status_column = "MEDICAL_STATUS"
+        dental_status_column = "DENTAL_STATUS"
+        vision_status_column = "VISION_STATUS"
         merged_df[COMMENT_COLUMN] = ""
+        merged_df[medical_status_column] = ""
+        merged_df[dental_status_column] = ""
+        merged_df[vision_status_column] = ""
         new_comment = ""
         for row_index, row in merged_df.iterrows():
+            status_column = COMMENT_COLUMN
             plan_type = row[ADP_PLAN_TYPE_COLUMN]
             if pd.isna(plan_type): # could be SP or CH, or could be missing employee in ADP
                 relationship = row[CIGNA_ID_RELATIONSHOP_COLUMN]
-                if relationship == "EE":
+                if relationship == CIGNA_ID_RELATIONSHIP_ENUM.EE.get_string():
                     new_comment = MATCHING_STATUS_ENUM.NEED_TO_BE_IN_ADP.get_string()
-                elif relationship == "SP" or relationship == "CH":
-                    new_comment = "Employee family member"
+                elif relationship == CIGNA_ID_RELATIONSHIP_ENUM.SP.get_string() or relationship == CIGNA_ID_RELATIONSHIP_ENUM.CH.get_string():
+                    new_comment = f"Employee family member: {relationship}"
             else:
+                new_comment = f"{plan_type}: "
                 if plan_type == PLAN_TYPE_ENUM.DENTAL.get_string():
+                    status_column = dental_status_column
                     if row[CIGNA_DENTAL_COLUMN] > 0:
-                        new_comment = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
+                        new_comment += MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
                     else:
-                        new_comment = f"Cigna should have {plan_type} bill greater than 0."
+                        new_comment += f"Cigna should have bill greater than 0."
                 elif plan_type == PLAN_TYPE_ENUM.MEDICAL.get_string():
+                    status_column = medical_status_column
                     if row[CIGNA_MEDICAL_POOLED_COLUMN] + row[CIGNA_MEDICAL_UNPOOLED_COLUMN] > 0:
-                        new_comment = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
+                        new_comment += MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
                     else:
-                        new_comment = f"Cigna should have {plan_type} bill greater than 0."
+                        new_comment += f"Cigna should have bill greater than 0."
                 elif plan_type == PLAN_TYPE_ENUM.VISION.get_string():
+                    status_column = vision_status_column
                     if row[CIGNA_VISION_COLUMN] > 0:
-                        new_comment = MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
+                        new_comment += MATCHING_STATUS_ENUM.GOOD_MATCHING.get_string()
                     else:
-                        new_comment = f"Cigna should have {plan_type} bill greater than 0."
+                        new_comment += f"Cigna should have bill greater than 0."
                 else:
                     self._log_error(f"Unsupported plan type {plan_type} from Cigna for {row[ADP_NAME_COLUMN]}, SSN: {row[CIGNA_ID_MEMBER_SSN_COLUMN]}")
-            merged_df.at[row_index, COMMENT_COLUMN] = new_comment
+                    new_comment += "Error"
+            merged_df.at[row_index, status_column] = new_comment
+
+        print(merged_df)
+        merged_df = merged_df.groupby(CIGNA_ID_MEMBER_SSN_COLUMN, as_index=False).agg({
+            ADP_NAME_COLUMN : "first",
+            CIGNA_EMPLOYEE_ID_COLUMN: "first",
+            CIGNA_MEDICAL_POOLED_COLUMN: "first",
+            CIGNA_MEDICAL_UNPOOLED_COLUMN: "first",
+            CIGNA_DENTAL_COLUMN: "first",
+            CIGNA_VISION_COLUMN: "first",
+            COMMENT_COLUMN : lambda x: " ".join(x),
+            medical_status_column : lambda x: " ".join(x),
+            dental_status_column : lambda x: " ".join(x),
+            vision_status_column : lambda x: " ".join(x)
+        })
+        print(merged_df)
+
 
         return merged_df
 

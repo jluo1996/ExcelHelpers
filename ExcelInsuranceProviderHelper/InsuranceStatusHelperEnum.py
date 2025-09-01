@@ -16,6 +16,18 @@ class PLAN_TYPE_ENUM(Enum):
             PLAN_TYPE_ENUM.MEDICAL: "Medical",
             PLAN_TYPE_ENUM.VISION: "Vision" 
         }[self]
+    
+class CIGNA_ID_RELATIONSHIP_ENUM(Enum):
+    EE = 0
+    SP = 1
+    CH = 2
+
+    def get_string(self):
+        return {
+            CIGNA_ID_RELATIONSHIP_ENUM.EE: "EE",
+            CIGNA_ID_RELATIONSHIP_ENUM.SP: "SP",
+            CIGNA_ID_RELATIONSHIP_ENUM.CH: "CH"
+        }[self]
 
 # Define an enumeration for different insurance providers
 class INSURANCE_FORMAT_ENUM(Enum):
@@ -78,7 +90,6 @@ class COMPANY_CODE_ENUM(Enum):
             COMPANY_CODE_ENUM.E9Y: "E9Y"
         }[self]
 
-# Define an enumeration for different matching statuses
 class MATCHING_STATUS_ENUM(Enum):
     GOOD_MATCHING = 0
     DUPLICATE_FOUND = 1
@@ -98,9 +109,6 @@ class MATCHING_STATUS_ENUM(Enum):
         }[self]
 
 
-# region ADP enums
-
-# Define an enumeration for different insurance enrollment statuses in ADP
 class ENROLLMENT_STATUS_ENUM(Enum):
     ACTIVE = 0
     INACTIVE = 1
@@ -113,5 +121,4 @@ class ENROLLMENT_STATUS_ENUM(Enum):
 
     
 
-# endregion
 

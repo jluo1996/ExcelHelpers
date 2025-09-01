@@ -1,6 +1,7 @@
 import os
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit, QLabel, QComboBox, QDesktopWidget, QTextEdit
+from PyQt5.QtCore import QUrl
+from PyQt5.QtWidgets import QApplication, QTextBrowser, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit, QLabel, QComboBox, QDesktopWidget
 import tkinter as tk
 from tkinter import filedialog
 from InsuranceStatusHelper import InsuranceStatusHelper
@@ -29,7 +30,7 @@ class MyWindow(QWidget):
         self.adp_file_path_textedit = QLineEdit()
         self.adp_file_path_textedit.setReadOnly(True)
         self.adp_file_path_textedit.setPlaceholderText("Select ADP file")
-        adp_file_browse_button = QPushButton("Browse")
+        adp_file_browse_button = QPushButton("Select ADP file")
 
         input_file_h_layout = QHBoxLayout()
         input_file_h_layout.addWidget(self.adp_file_path_textedit)
@@ -40,8 +41,8 @@ class MyWindow(QWidget):
         # Insurance file 
         self.insurance_file_path_textedit = QLineEdit()
         self.insurance_file_path_textedit.setReadOnly(True)
-        self.insurance_file_path_textedit.setPlaceholderText("Select insurance file")
-        insurance_file_browse_button = QPushButton("Browse")
+        self.insurance_file_path_textedit.setPlaceholderText("Select Insurance File")
+        insurance_file_browse_button = QPushButton("Select Insurance File")
 
         insurance_file_h_layout = QHBoxLayout()
         insurance_file_h_layout.addWidget(self.insurance_file_path_textedit)
@@ -52,8 +53,11 @@ class MyWindow(QWidget):
         # Output folder path
         self.output_folder_path_textedit = QLineEdit()
         self.output_folder_path_textedit.setReadOnly(True)
-        self.output_folder_path_textedit.setPlaceholderText("Select output folder")
-        output_folder_path_button = QPushButton("Browse")
+        self.output_folder_path_textedit.setPlaceholderText("Select Output Folder")
+        script_path = os.path.abspath(__file__)
+        script_dir = os.path.dirname(script_path)
+        self.output_folder_path_textedit.setText(script_dir)
+        output_folder_path_button = QPushButton("Select Output Folder")
 
         output_folder_path_h_layout = QHBoxLayout()
         output_folder_path_h_layout.addWidget(self.output_folder_path_textedit)
@@ -77,12 +81,15 @@ class MyWindow(QWidget):
         # Insurance ID file 
         self.insurance_id_ile_path_textedit = QLineEdit()
         self.insurance_id_ile_path_textedit.setReadOnly(True)
-        self.insurance_id_ile_path_textedit.setPlaceholderText("Select insurance ID file")
-        insurance_id_file_browse_button = QPushButton("Select ID file")
+        self.insurance_id_ile_path_textedit.setPlaceholderText("Select Insurance ID file")
+        insurance_id_file_browse_button = QPushButton("Select ID File")
 
-        insurance_id_file_h_layout = QHBoxLayout()
+        self.insurance_id_file_container = QWidget()
+        insurance_id_file_h_layout = QHBoxLayout(self.insurance_id_file_container)
         insurance_id_file_h_layout.addWidget(self.insurance_id_ile_path_textedit)
         insurance_id_file_h_layout.addWidget(insurance_id_file_browse_button)
+        insurance_id_file_h_layout.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
+        insurance_id_file_h_layout.setSpacing(0)  # optional, removes spacing between child widgets
         # ---------- end of insurance file  
 
 
@@ -98,12 +105,19 @@ class MyWindow(QWidget):
         insurance_plan_type_h_layout = QHBoxLayout(self.insurance_plan_type_container)
         insurance_plan_type_h_layout.addWidget(insurance_plan_type_label)
         insurance_plan_type_h_layout.addWidget(self.insurance_plan_type_combobox)
+        insurance_plan_type_h_layout.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
+        insurance_plan_type_h_layout.setSpacing(0)  # optional, removes spacing between child widgets
+
         # ---------- end of Insurance Plan Type
 
 
         # Log area
-        self.log_textedit = QTextEdit()
+        self.log_textedit = QTextBrowser()
         self.log_textedit.setReadOnly(True)
+        self.log_textedit.setOpenLinks(False)
+        self.log_textedit.setOpenExternalLinks(False)
+        self.log_textedit.anchorClicked.connect(self.output_file_path_text_clicked)
+        self.log_textedit.setHtml("")
 
 
         # Function buttons
@@ -128,7 +142,7 @@ class MyWindow(QWidget):
         main_v_layout.addLayout(insurance_file_h_layout)
         main_v_layout.addLayout(output_folder_path_h_layout)
         main_v_layout.addLayout(insurance_provider_h_layout)
-        main_v_layout.addLayout(insurance_id_file_h_layout)
+        main_v_layout.addWidget(self.insurance_id_file_container)
         main_v_layout.addWidget(self.insurance_plan_type_container)
         main_v_layout.addWidget(self.log_textedit)
         main_v_layout.addLayout(function_button_h_box)
@@ -153,6 +167,14 @@ class MyWindow(QWidget):
         # Move top-left of window to rectangle's top-left
         self.move(qr.topLeft())
 
+    def output_file_path_text_clicked(self, url: QUrl):
+        output_path = url.toLocalFile()
+        output_path = os.path.dirname(output_path)
+        if os.path.exists(output_path):
+            os.startfile(output_path)
+        else:
+            self.logger.log_error(f"Failed to open {output_path}")
+
     def output_folder_path_button_clicked(self):
         output_folder_path = self.get_folder_from_user()
         self.output_folder_path_textedit.setText(output_folder_path)
@@ -160,6 +182,7 @@ class MyWindow(QWidget):
     def insurance_provider_selection_changed(self, index):
         if self.insurance_plan_type_combobox:
             self.insurance_plan_type_container.setVisible(not (index == INSURANCE_FORMAT_ENUM.CIGNA.value))
+            self.insurance_id_file_container.setVisible(index == INSURANCE_FORMAT_ENUM.CIGNA.value)
 
     def insurance_id_file_browse_button_clicked(self):
         insurance_id_file_path = self.get_excel_file_from_user()
@@ -226,6 +249,17 @@ class MyWindow(QWidget):
         elif not os.path.isdir(output_folder_path):
             error_msg.append(f"{output_folder_path} is not a valid directory.")
         # ------- end of Validate Output folder
+
+        # Validate ID file 
+        if self.get_selected_insurance_provider_index() == INSURANCE_FORMAT_ENUM.CIGNA.value:
+            id_file_path = self.get_insurance_id_file_path()
+            if not id_file_path:
+                error_msg.append(f"ID file is reqiured for {((INSURANCE_FORMAT_ENUM)(self.get_selected_insurance_provider_index())).get_string()}.")
+            elif not os.path.isabs(id_file_path):
+                error_msg.append(f"{id_file_path} is not an absolute path.")
+            elif not id_file_path.lower().endswith(".xlsx"):
+                error_msg.append(f"{id_file_path} is not a xlsx file.")
+        # ------- end of Validate ID file 
 
         is_ready = len(error_msg) == 0
 
