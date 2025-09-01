@@ -18,7 +18,7 @@ class MyWindow(QWidget):
         self.logger = logger
         self._init_UI()
 
-        self.logger.text_edit = self.log_textedit
+        self.logger.text_browser = self.log_textbrowser
 
 
     def _init_UI(self):
@@ -112,12 +112,12 @@ class MyWindow(QWidget):
 
 
         # Log area
-        self.log_textedit = QTextBrowser()
-        self.log_textedit.setReadOnly(True)
-        self.log_textedit.setOpenLinks(False)
-        self.log_textedit.setOpenExternalLinks(False)
-        self.log_textedit.anchorClicked.connect(self.output_file_path_text_clicked)
-        self.log_textedit.setHtml("")
+        self.log_textbrowser = QTextBrowser()
+        self.log_textbrowser.setReadOnly(True)
+        self.log_textbrowser.setOpenLinks(False)
+        self.log_textbrowser.setOpenExternalLinks(False)
+        self.log_textbrowser.anchorClicked.connect(self.output_file_path_text_clicked)
+        self.log_textbrowser.setHtml("")
 
 
         # Function buttons
@@ -144,7 +144,7 @@ class MyWindow(QWidget):
         main_v_layout.addLayout(insurance_provider_h_layout)
         main_v_layout.addWidget(self.insurance_id_file_container)
         main_v_layout.addWidget(self.insurance_plan_type_container)
-        main_v_layout.addWidget(self.log_textedit)
+        main_v_layout.addWidget(self.log_textbrowser)
         main_v_layout.addLayout(function_button_h_box)
         self.setLayout(main_v_layout)
 

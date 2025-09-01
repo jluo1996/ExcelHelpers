@@ -105,9 +105,12 @@ class InsuranceStatusHelper:
             try:
                 self.worker_thread.start()
             except Exception as e:
-                print(e)
+                self._log_error(f"{__class__}: {e}")
         else:
-            self._generate_status_report()
+            try:
+                self._generate_status_report()
+            except Exception as e:
+                self._log_error(f"{__class__}: {e}")
 
     def _generate_status_report(self):
         self._log_info(f"Job starting...")
@@ -225,7 +228,6 @@ class InsuranceStatusHelper:
                     new_comment += "Error"
             merged_df.at[row_index, status_column] = new_comment
 
-        print(merged_df)
         merged_df = merged_df.groupby(CIGNA_ID_MEMBER_SSN_COLUMN, as_index=False).agg({
             ADP_NAME_COLUMN : "first",
             CIGNA_EMPLOYEE_ID_COLUMN: "first",
@@ -238,8 +240,6 @@ class InsuranceStatusHelper:
             dental_status_column : lambda x: " ".join(x),
             vision_status_column : lambda x: " ".join(x)
         })
-        print(merged_df)
-
 
         return merged_df
 
@@ -319,7 +319,7 @@ class InsuranceStatusHelper:
         try:
             dt = datetime.strptime(date_string, format)
         except TypeError:
-            print("Invalid date string")
+            self._log_error(f"{__class__}: Invalid type in _get_excel_serial_date()")
         excel_start = datetime(1899, 12, 30)  # Excel's epoch start date
         return (dt - excel_start).days
     
