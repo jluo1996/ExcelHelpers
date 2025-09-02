@@ -209,8 +209,26 @@ class MyWindow(QWidget):
         insurance_provider_type = INSURANCE_FORMAT_ENUM(self.get_selected_insurance_provider_index())
         plan_type = PLAN_TYPE_ENUM(self.get_selected_insurance_plan_type_index())
         output_folder = self.get_output_folder_path()
-        helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, id_file_path, insurance_provider_type, plan_type, output_folder, self.logger)
-        helper.generate_status_report(False)
+        self.helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, id_file_path, insurance_provider_type, plan_type, output_folder, self.logger)
+        self.helper.set_finish_method(self.job_completed)
+        self.enable_all_interactive_UI(False)
+        run_as_thread = not __debug__
+        self.helper.generate_status_report(run_as_thread)
+
+    def enable_all_interactive_UI(self, enable : bool = True):
+        self.enable_all_buttons(enable)
+        self.enable_all_comboboxes(enable)
+
+    def enable_all_buttons(self, enable : bool = True):
+        for btn in self.findChildren(QPushButton):
+            btn.setEnabled(enable)
+
+    def enable_all_comboboxes(self, enable: bool = True):
+        for combobox in self.findChildren(QComboBox):
+            combobox.setEnabled(enable)
+
+    def job_completed(self):
+        self.enable_all_interactive_UI()
 
     def insurance_file_browse_button_clicked(self):
         insurance_file_full_path = self.get_excel_file_from_user()

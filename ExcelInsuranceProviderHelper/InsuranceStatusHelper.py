@@ -6,7 +6,7 @@ import pandas as pd
 import re
 from InsuranceStatusHelperEnum import CIGNA_ID_RELATIONSHIP_ENUM, EMPLOYEE_STATUS_ENUM, ENROLLMENT_STATUS_ENUM, INSURANCE_FORMAT_ENUM, MATCHING_STATUS_ENUM, PLAN_TYPE_ENUM
 from logger import Logger
-from PyQt5.QtCore import QThread, QUrl
+from PyQt5.QtCore import QThread, QUrl, pyqtSignal
 
 # ADP sheet column names
 ADP_COMPANY_CODE_COLUMN = "COMPANY CODE"
@@ -53,6 +53,8 @@ BFS_SHEET_NAME = "bfs"
 BSS_SHEET_NAME = "bss"
 
 class GenericWorker(QThread):
+    finished = pyqtSignal()   # <-- completion signal
+    
     def __init__(self, func, logger : Logger = None):
         super().__init__()
 
@@ -65,6 +67,8 @@ class GenericWorker(QThread):
         except Exception as e:
             if self.logger is not None:
                 self.logger.log_error(f"Exception is caught: {e}")
+        finally:
+            self.finished.emit()
 
 
 
@@ -80,6 +84,8 @@ class InsuranceStatusHelper:
         self.insurance_provider_type = insurance_provider_type
         self.output_folder = output_folder
         self.logger = logger
+
+        self.finish_func = None
 
     def _log_info(self, msg):
         if self.logger:
@@ -99,9 +105,14 @@ class InsuranceStatusHelper:
         else:
             print(msg)
 
+    def set_finish_method(self, func):
+        self.finish_func = func
+
     def generate_status_report(self, run_as_thread = False):
         if run_as_thread:
             self.worker_thread = GenericWorker(self._generate_status_report, self.logger)
+            if self.finish_func:
+                self.worker_thread.finished.connect(self.finish_func)
             try:
                 self.worker_thread.start()
             except Exception as e:
@@ -129,9 +140,9 @@ class InsuranceStatusHelper:
             csv_file_path = output_file_full_path.replace(".xlsx", '.csv')
             report_df.to_csv(csv_file_path, index=False)
 
-        end_time = time.time()
-        time_elapsed = end_time - start_time
-        self._log_warning(f"Time elapsed: {time_elapsed:.4f} seconds")
+            end_time = time.time()
+            time_elapsed = end_time - start_time
+            self._log_warning(f"Time elapsed: {time_elapsed:.4f} seconds")
         
     def _create_excel_file(self, df : pd.DataFrame, output_file_full_name: str, overwite : bool = True):
         already_exist = os.path.exists(output_file_full_name)
