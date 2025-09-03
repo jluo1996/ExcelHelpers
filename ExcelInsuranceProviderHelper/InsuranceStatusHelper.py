@@ -53,7 +53,7 @@ BFS_SHEET_NAME = "bfs"
 BSS_SHEET_NAME = "bss"
 
 class GenericWorker(QThread):
-    finished = pyqtSignal()   # <-- completion signal
+    finished = pyqtSignal(str)   # <-- completion signal
     
     def __init__(self, func, logger : Logger = None):
         super().__init__()
@@ -62,13 +62,14 @@ class GenericWorker(QThread):
         self.logger = logger
 
     def run(self):
+        output_file_path = None
         try:
-            self.func() 
+            output_file_path = self.func() 
         except Exception as e:
             if self.logger is not None:
                 self.logger.log_error(f"Exception is caught: {e}")
         finally:
-            self.finished.emit()
+            self.finished.emit(output_file_path)
 
 
 
@@ -119,7 +120,7 @@ class InsuranceStatusHelper:
                 self._log_error(f"{__class__}: {e}")
         else:
             try:
-                self._generate_status_report()
+                return self._generate_status_report()
             except Exception as e:
                 self._log_error(f"{__class__}: {e}")
 
@@ -143,6 +144,8 @@ class InsuranceStatusHelper:
             end_time = time.time()
             time_elapsed = end_time - start_time
             self._log_warning(f"Time elapsed: {time_elapsed:.4f} seconds")
+
+        return output_file_full_path
         
     def _create_excel_file(self, df : pd.DataFrame, output_file_full_name: str, overwite : bool = True):
         already_exist = os.path.exists(output_file_full_name)

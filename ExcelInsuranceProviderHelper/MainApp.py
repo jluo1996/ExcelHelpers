@@ -54,9 +54,6 @@ class MyWindow(QWidget):
         self.output_folder_path_textedit = QLineEdit()
         self.output_folder_path_textedit.setReadOnly(True)
         self.output_folder_path_textedit.setPlaceholderText("Select Output Folder")
-        script_path = os.path.abspath(__file__)
-        script_dir = os.path.dirname(script_path)
-        self.output_folder_path_textedit.setText(script_dir)
         output_folder_path_button = QPushButton("Select Output Folder")
 
         output_folder_path_h_layout = QHBoxLayout()
@@ -210,10 +207,13 @@ class MyWindow(QWidget):
         plan_type = PLAN_TYPE_ENUM(self.get_selected_insurance_plan_type_index())
         output_folder = self.get_output_folder_path()
         self.helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, id_file_path, insurance_provider_type, plan_type, output_folder, self.logger)
-        self.helper.set_finish_method(self.job_completed)
-        self.enable_all_interactive_UI(False)
         run_as_thread = not __debug__
-        self.helper.generate_status_report(run_as_thread)
+        if run_as_thread:
+            self.helper.set_finish_method(self.job_completed)
+            self.enable_all_interactive_UI(False)
+        output_file_path = self.helper.generate_status_report(run_as_thread)
+        if not run_as_thread and output_file_path:
+            self.job_completed(output_file_path)
 
     def enable_all_interactive_UI(self, enable : bool = True):
         self.enable_all_buttons(enable)
@@ -227,8 +227,10 @@ class MyWindow(QWidget):
         for combobox in self.findChildren(QComboBox):
             combobox.setEnabled(enable)
 
-    def job_completed(self):
+    def job_completed(self, path :str ):
         self.enable_all_interactive_UI()
+        if path:
+            self.output_file_path_text_clicked(QUrl.fromLocalFile(path))
 
     def insurance_file_browse_button_clicked(self):
         insurance_file_full_path = self.get_excel_file_from_user()
