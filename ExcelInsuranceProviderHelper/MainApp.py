@@ -1,6 +1,6 @@
 import os
 import sys
-from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import QSharedMemory, QSystemSemaphore, QUrl
 from PyQt5.QtWidgets import QApplication, QTextBrowser, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit, QLabel, QComboBox, QDesktopWidget
 import tkinter as tk
 from tkinter import filedialog
@@ -334,8 +334,30 @@ class MyWindow(QWidget):
         folder_path = filedialog.askdirectory(title="Select a folder")
         return folder_path
 
+APP_ID = "ExcelInsuranceProviderHelper"
+class SingleInstance:
+    def __init__(self, key):
+        self.key = key
+        self.semaphore = QSystemSemaphore(self.key + "_sem", 1)
+        self.semaphore.acquire()
+
+        self.shared_memory = QSharedMemory(self.key)
+        if self.shared_memory.attach():
+            # Another instance already running
+            self.is_running = True
+        else:
+            self.shared_memory.create(1)  # create memory block
+            self.is_running = False
+
+        self.semaphore.release()
 
 if __name__ == "__main__":
+    instance = SingleInstance(APP_ID)
+    if instance.is_running:
+        import ctypes  # An included library with Python install.   
+        ctypes.windll.user32.MessageBoxW(0, "Another instance is already running.", "Information", 0)
+        sys.exit(0)
+
     app = QApplication(sys.argv)
     logger = Logger()
     window = MyWindow(logger)
