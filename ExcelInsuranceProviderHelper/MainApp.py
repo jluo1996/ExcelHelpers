@@ -1,7 +1,7 @@
 import os
 import sys
-from PyQt5.QtCore import QSharedMemory, QSystemSemaphore, QUrl
-from PyQt5.QtWidgets import QApplication, QTextBrowser, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit, QLabel, QComboBox, QDesktopWidget
+from PyQt5.QtCore import QDate, QSharedMemory, QSystemSemaphore, QUrl
+from PyQt5.QtWidgets import QApplication, QDateEdit, QTextBrowser, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit, QLabel, QComboBox, QDesktopWidget
 import tkinter as tk
 from tkinter import filedialog
 from InsuranceStatusHelper import InsuranceStatusHelper
@@ -90,6 +90,27 @@ class MyWindow(QWidget):
         # ---------- end of insurance file  
 
 
+        # Date selection
+        self.start_date_label = QLabel()
+        self.start_date_label.setText("Start Date")
+        self.start_date_edit = QDateEdit()
+        self.start_date_edit.setDate(QDate.currentDate())
+        self.start_date_edit.setCalendarPopup(True)
+        
+        self.end_date_label = QLabel()
+        self.end_date_label.setText("End Date")
+        self.end_date_edit = QDateEdit()
+        self.end_date_edit.setDate(QDate.currentDate())
+        self.end_date_edit.setCalendarPopup(True)
+        
+        self.data_selection_container = QWidget()
+        date_selection_h_layout = QHBoxLayout(self.data_selection_container)
+        date_selection_h_layout.addWidget(self.start_date_label)
+        date_selection_h_layout.addWidget(self.start_date_edit)
+        date_selection_h_layout.addWidget(self.end_date_label)
+        date_selection_h_layout.addWidget(self.end_date_edit)
+
+
         # Insurance Plan Type
         
         insurance_plan_type_label = QLabel()
@@ -140,6 +161,7 @@ class MyWindow(QWidget):
         main_v_layout.addLayout(output_folder_path_h_layout)
         main_v_layout.addLayout(insurance_provider_h_layout)
         main_v_layout.addWidget(self.insurance_id_file_container)
+        main_v_layout.addWidget(self.data_selection_container)
         main_v_layout.addWidget(self.insurance_plan_type_container)
         main_v_layout.addWidget(self.log_textbrowser)
         main_v_layout.addLayout(function_button_h_box)
@@ -180,6 +202,7 @@ class MyWindow(QWidget):
         if self.insurance_plan_type_combobox:
             self.insurance_plan_type_container.setVisible(not (index == INSURANCE_FORMAT_ENUM.CIGNA.value))
             self.insurance_id_file_container.setVisible(index == INSURANCE_FORMAT_ENUM.CIGNA.value)
+            self.data_selection_container.setVisible(index == INSURANCE_FORMAT_ENUM.CIGNA.value)
 
     def insurance_id_file_browse_button_clicked(self):
         insurance_id_file_path = self.get_excel_file_from_user()
@@ -203,10 +226,21 @@ class MyWindow(QWidget):
         adp_file_path = self.get_adp_file_full_path()
         insurance_file_path = self.get_insurance_file_path()
         id_file_path = self.get_insurance_id_file_path()
+        start_date = self.get_selected_start_date()
+        end_date = self.get_selected_end_date()
         insurance_provider_type = INSURANCE_FORMAT_ENUM(self.get_selected_insurance_provider_index())
         plan_type = PLAN_TYPE_ENUM(self.get_selected_insurance_plan_type_index())
         output_folder = self.get_output_folder_path()
-        self.helper = InsuranceStatusHelper(adp_file_path, insurance_file_path, id_file_path, insurance_provider_type, plan_type, output_folder, self.logger)
+        self.helper = InsuranceStatusHelper(adp_file_full_path=adp_file_path,
+                                            insurance_file_full_path=insurance_file_path, 
+                                            id_file_full_path=id_file_path, 
+                                            start_date=start_date, 
+                                            end_date=end_date,
+                                            insurance_provider_type=insurance_provider_type, 
+                                            plan_type=plan_type, 
+                                            output_folder=output_folder, 
+                                            logger=self.logger)
+        
         run_as_thread = not __debug__
         if run_as_thread:
             self.helper.set_finish_method(self.job_completed)
@@ -300,6 +334,12 @@ class MyWindow(QWidget):
         
         # Must be absolute path and end with .xlsx
         return os.path.isabs(path) and path.lower().endswith(".xlsx")
+    
+    def get_selected_start_date(self) -> str:
+        return self.start_date_edit.date().toString("MM/dd/yyyy")
+    
+    def get_selected_end_date(self) -> str:
+        return self.end_date_edit.date().toString("MM/dd/yyyy")
     
     def get_adp_file_full_path(self):
         return self.adp_file_path_textedit.text()
