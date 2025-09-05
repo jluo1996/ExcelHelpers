@@ -76,14 +76,14 @@ class MyWindow(QWidget):
 
 
         # Insurance ID file 
-        self.insurance_id_ile_path_textedit = QLineEdit()
-        self.insurance_id_ile_path_textedit.setReadOnly(True)
-        self.insurance_id_ile_path_textedit.setPlaceholderText("Select Insurance ID file")
+        self.insurance_id_file_path_textedit = QLineEdit()
+        self.insurance_id_file_path_textedit.setReadOnly(True)
+        self.insurance_id_file_path_textedit.setPlaceholderText("Select Insurance ID file")
         insurance_id_file_browse_button = QPushButton("Select ID File")
 
         self.insurance_id_file_container = QWidget()
         insurance_id_file_h_layout = QHBoxLayout(self.insurance_id_file_container)
-        insurance_id_file_h_layout.addWidget(self.insurance_id_ile_path_textedit)
+        insurance_id_file_h_layout.addWidget(self.insurance_id_file_path_textedit)
         insurance_id_file_h_layout.addWidget(insurance_id_file_browse_button)
         insurance_id_file_h_layout.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
         insurance_id_file_h_layout.setSpacing(0)  # optional, removes spacing between child widgets
@@ -119,12 +119,22 @@ class MyWindow(QWidget):
         self.log_textbrowser.anchorClicked.connect(self.output_file_path_text_clicked)
         self.log_textbrowser.setHtml("")
 
+        # ----------------- end of Log area
+
 
         # Function buttons
         generate_status_report_button = QPushButton("Generate Status Report")
 
+        reset_button = QPushButton("Reset") # clear all field and log message
+
         function_button_h_box = QHBoxLayout() # Keep this layout for more functions in the future
         function_button_h_box.addWidget(generate_status_report_button)
+        function_button_h_box.addWidget(reset_button)
+
+        if __debug__:
+            clear_log_button = QPushButton("Clear Log")
+            clear_log_button.clicked.connect(self.clear_log_button_clicked)
+            function_button_h_box.addWidget(clear_log_button)
         # ---------- end of Function buttons
 
 
@@ -135,6 +145,7 @@ class MyWindow(QWidget):
         self.insurance_provider_combobox.currentIndexChanged.connect(self.insurance_provider_selection_changed)
         insurance_id_file_browse_button.clicked.connect(self.insurance_id_file_browse_button_clicked)
         generate_status_report_button.clicked.connect(self.generate_status_report_button_clicked)
+        reset_button.clicked.connect(self.reset_button_clicked)
         # --------- end of Command connect
 
         main_v_layout = QVBoxLayout()
@@ -186,12 +197,25 @@ class MyWindow(QWidget):
     def insurance_id_file_browse_button_clicked(self):
         insurance_id_file_path = self.get_excel_file_from_user()
         if insurance_id_file_path:
-            self.insurance_id_ile_path_textedit.setText(insurance_id_file_path)
+            self.insurance_id_file_path_textedit.setText(insurance_id_file_path)
 
     def adp_file_browse_button_clicked(self):
         adp_file_full_path = self.get_excel_file_from_user()
         if adp_file_full_path:
             self.adp_file_path_textedit.setText(adp_file_full_path)
+
+    def reset_button_clicked(self):
+        self.adp_file_path_textedit.clear()
+        self.insurance_file_path_textedit.clear()
+        self.output_folder_path_textedit.clear()
+        self.insurance_provider_combobox.setCurrentIndex(0)
+        self.insurance_id_file_path_textedit.clear()
+        self.start_date_edit.setDate(QDate.currentDate())
+        self.end_date_edit.setDate(QDate.currentDate())
+        self.log_textbrowser.clear()
+
+    def clear_log_button_clicked(self):
+        self.log_textbrowser.clear()
 
     def generate_status_report_button_clicked(self):
         proceed, error_msgs = self.get_is_ready_to_generate_status_report()
@@ -205,8 +229,8 @@ class MyWindow(QWidget):
         adp_file_path = self.get_adp_file_full_path()
         insurance_file_path = self.get_insurance_file_path()
         id_file_path = self.get_insurance_id_file_path()
-        start_date = self.get_selected_start_date()
-        end_date = self.get_selected_end_date()
+        start_date = self.get_selected_start_date_string()
+        end_date = self.get_selected_end_date_string()
         insurance_provider_type = INSURANCE_FORMAT_ENUM(self.get_selected_insurance_provider_index())
         output_folder = self.get_output_folder_path()
         self.helper = InsuranceStatusHelper(adp_file_full_path=adp_file_path,
@@ -292,6 +316,11 @@ class MyWindow(QWidget):
                 error_msg.append(f"{id_file_path} is not a xlsx file.")
         # ------- end of Validate ID file 
 
+        # validate start/end date
+        if self.get_selected_start_date() > self.get_selected_end_date():
+            error_msg.append("Start date cannot be later than end date.")
+        # ------- end of validate start/end date
+
         is_ready = len(error_msg) == 0
 
         return is_ready, error_msg
@@ -312,17 +341,23 @@ class MyWindow(QWidget):
         # Must be absolute path and end with .xlsx
         return os.path.isabs(path) and path.lower().endswith(".xlsx")
     
-    def get_selected_start_date(self) -> str:
+    def get_selected_start_date_string(self) -> str:
         return self.start_date_edit.date().toString("MM/dd/yyyy")
     
-    def get_selected_end_date(self) -> str:
+    def get_selected_start_date(self) -> QDate:
+        return self.start_date_edit.date()
+    
+    def get_selected_end_date_string(self) -> str:
         return self.end_date_edit.date().toString("MM/dd/yyyy")
+    
+    def get_selected_end_date(self) -> QDate:
+        return self.end_date_edit.date()
     
     def get_adp_file_full_path(self):
         return self.adp_file_path_textedit.text()
     
     def get_insurance_id_file_path(self):
-        return self.insurance_id_ile_path_textedit.text()
+        return self.insurance_id_file_path_textedit.text()
     
     def get_insurance_file_path(self):
         return self.insurance_file_path_textedit.text()
