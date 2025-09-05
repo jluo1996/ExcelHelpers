@@ -22,7 +22,7 @@ class Logger():
 
     def log_warning(self, msg, scroll_to_bottom: bool = True):
         if self.text_browser:
-            self._append_new_line(msg, 'yellow') 
+            self._append_new_line(msg, '#FFA500') 
             if scroll_to_bottom:
                 self._scroll_to_bottom()
         self._print(msg, Fore.YELLOW)
