@@ -16,7 +16,7 @@ jobs:
         
     - name: Run PyInstaller with repo Python
       run: |
-        ./ExcelInsuranceProviderHelper/Python313/python.exe -m PyInstaller --onefile --noconsole --name Excel_Insurance_Provider_Helper ./ExcelInsuranceProviderHelper/MainApp.py
+        ./ExcelInsuranceProviderHelper/Python313/python.exe -O -m PyInstaller --onefile --noconsole --name Excel_Insurance_Provider_Helper ./ExcelInsuranceProviderHelper/MainApp.py
 
     - name: Upload EXE as artifact
       uses: actions/upload-artifact@v4

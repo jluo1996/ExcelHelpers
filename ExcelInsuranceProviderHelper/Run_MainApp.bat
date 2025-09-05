@@ -8,5 +8,5 @@ set PYTHON_EXE_DIR="%SCRIPT_DIR%Python313\python.exe"
 REM Get the path for MainApp.py
 set MAIN_APP_PY_DIR = "%SCRIPT_DIR%MainApp.py"
 
-REM Run the Python script using python.exe in a subfolder (replace subfolder name if needed)
-start "" /b "%SCRIPT_DIR%Python313\pythonw.exe" "%SCRIPT_DIR%MainApp.py"
+REM Run the Python script using pythonw.exe with optimization (-O)
+start "" /b "%SCRIPT_DIR%Python313\pythonw.exe" -O "%SCRIPT_DIR%MainApp.py"
