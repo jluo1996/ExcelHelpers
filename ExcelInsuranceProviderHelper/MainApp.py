@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QApplication, QDateEdit, QTextBrowser, QWidget, QVBo
 import tkinter as tk
 from tkinter import filedialog
 from InsuranceStatusHelper import InsuranceStatusHelper
-from InsuranceStatusHelperEnum import INSURANCE_FORMAT_ENUM, PLAN_TYPE_ENUM
+from InsuranceStatusHelperEnum import INSURANCE_FORMAT_ENUM
 from logger import Logger
 
 WINDOW_WIDTH = 600
@@ -111,24 +111,6 @@ class MyWindow(QWidget):
         date_selection_h_layout.addWidget(self.end_date_edit)
 
 
-        # Insurance Plan Type
-        
-        insurance_plan_type_label = QLabel()
-        insurance_plan_type_label.setText("Select Insurance Type:")
-        self.insurance_plan_type_combobox = QComboBox()
-        for plan_type in PLAN_TYPE_ENUM:
-            self.insurance_plan_type_combobox.addItem(plan_type.name)
-
-        self.insurance_plan_type_container = QWidget()
-        insurance_plan_type_h_layout = QHBoxLayout(self.insurance_plan_type_container)
-        insurance_plan_type_h_layout.addWidget(insurance_plan_type_label)
-        insurance_plan_type_h_layout.addWidget(self.insurance_plan_type_combobox)
-        insurance_plan_type_h_layout.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
-        insurance_plan_type_h_layout.setSpacing(0)  # optional, removes spacing between child widgets
-
-        # ---------- end of Insurance Plan Type
-
-
         # Log area
         self.log_textbrowser = QTextBrowser()
         self.log_textbrowser.setReadOnly(True)
@@ -162,7 +144,6 @@ class MyWindow(QWidget):
         main_v_layout.addLayout(insurance_provider_h_layout)
         main_v_layout.addWidget(self.insurance_id_file_container)
         main_v_layout.addWidget(self.data_selection_container)
-        main_v_layout.addWidget(self.insurance_plan_type_container)
         main_v_layout.addWidget(self.log_textbrowser)
         main_v_layout.addLayout(function_button_h_box)
         self.setLayout(main_v_layout)
@@ -199,10 +180,8 @@ class MyWindow(QWidget):
         self.output_folder_path_textedit.setText(output_folder_path)
     
     def insurance_provider_selection_changed(self, index):
-        if self.insurance_plan_type_combobox:
-            self.insurance_plan_type_container.setVisible(not (index == INSURANCE_FORMAT_ENUM.CIGNA.value))
-            self.insurance_id_file_container.setVisible(index == INSURANCE_FORMAT_ENUM.CIGNA.value)
-            self.data_selection_container.setVisible(index == INSURANCE_FORMAT_ENUM.CIGNA.value)
+        self.insurance_id_file_container.setVisible(index == INSURANCE_FORMAT_ENUM.CIGNA.value)
+        self.data_selection_container.setVisible(index == INSURANCE_FORMAT_ENUM.CIGNA.value)
 
     def insurance_id_file_browse_button_clicked(self):
         insurance_id_file_path = self.get_excel_file_from_user()
@@ -229,7 +208,6 @@ class MyWindow(QWidget):
         start_date = self.get_selected_start_date()
         end_date = self.get_selected_end_date()
         insurance_provider_type = INSURANCE_FORMAT_ENUM(self.get_selected_insurance_provider_index())
-        plan_type = PLAN_TYPE_ENUM(self.get_selected_insurance_plan_type_index())
         output_folder = self.get_output_folder_path()
         self.helper = InsuranceStatusHelper(adp_file_full_path=adp_file_path,
                                             insurance_file_full_path=insurance_file_path, 
@@ -237,7 +215,6 @@ class MyWindow(QWidget):
                                             start_date=start_date, 
                                             end_date=end_date,
                                             insurance_provider_type=insurance_provider_type, 
-                                            plan_type=plan_type, 
                                             output_folder=output_folder, 
                                             logger=self.logger)
         
@@ -355,9 +332,6 @@ class MyWindow(QWidget):
 
     def get_selected_insurance_provider_index(self):
         return self.insurance_provider_combobox.currentIndex()
-
-    def get_selected_insurance_plan_type_index(self):
-        return self.insurance_plan_type_combobox.currentIndex()
 
     def get_excel_file_from_user(self):
         root = tk.Tk()

@@ -80,13 +80,12 @@ class GenericWorker(QThread):
 This is a helper to retrieve insurance status of each employee
 """
 class InsuranceStatusHelper:
-    def __init__(self, adp_file_full_path : str, insurance_file_full_path : str, id_file_full_path: str, start_date : str, end_date : str, insurance_provider_type : INSURANCE_FORMAT_ENUM, plan_type : PLAN_TYPE_ENUM, output_folder : str, logger : Logger = None):
+    def __init__(self, adp_file_full_path : str, insurance_file_full_path : str, id_file_full_path: str, start_date : str, end_date : str, insurance_provider_type : INSURANCE_FORMAT_ENUM, output_folder : str, logger : Logger = None):
         self.adp_file_path = adp_file_full_path
         self.insurance_file_path = insurance_file_full_path
         self.id_file_full_path = id_file_full_path
         self.start_date = start_date
         self.end_date = end_date
-        self.plan_type = plan_type
         self.insurance_provider_type = insurance_provider_type
         self.output_folder = output_folder
         self.logger = logger
@@ -132,13 +131,13 @@ class InsuranceStatusHelper:
     def _generate_status_report(self):
         self._log_info(f"Job starting...")
         start_time = time.time()
-        report_df = self._get_status_report(self.adp_file_path, self.insurance_file_path, self.id_file_full_path, self.start_date, self.end_date, self.insurance_provider_type, self.plan_type)
+        report_df = self._get_status_report(self.adp_file_path, self.insurance_file_path, self.id_file_full_path, self.start_date, self.end_date, self.insurance_provider_type)
         if report_df is None:
-            self._log_error(f"{self.plan_type.get_string()} with {self.insurance_provider_type.get_string()} is not supported.")
+            self._log_error(f"{self.insurance_provider_type.get_string()} is not supported.")
             return
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file_name = f"StatusReport_{self.insurance_provider_type.get_string()}_{self.plan_type.get_string()}_{timestamp}.xlsx"
+        output_file_name = f"StatusReport_{self.insurance_provider_type.get_string()}_{timestamp}.xlsx"
         output_file_full_path = os.path.join(Path(self.output_folder), output_file_name)
         self._create_excel_file(report_df, output_file_full_path)
 
@@ -164,18 +163,13 @@ class InsuranceStatusHelper:
         output_file_sentence = f'Here is a <a href="{output_file_full_name.toString()}">{output_file_full_name.toString()}</a> word.'
         self._log_info(output_file_sentence)
 
-    def _get_status_report(self, adp_file_full_path : str, insurance_file_full_path : str, id_file_full_path: str, start_date: str, end_date: str, insurance_format : INSURANCE_FORMAT_ENUM, plan_type : PLAN_TYPE_ENUM):
+    def _get_status_report(self, adp_file_full_path : str, insurance_file_full_path : str, id_file_full_path: str, start_date: str, end_date: str, insurance_format : INSURANCE_FORMAT_ENUM):
         if insurance_format == INSURANCE_FORMAT_ENUM.CIGNA:
             return self._get_status_report_for_cigna(adp_file_full_path, insurance_file_full_path, id_file_full_path, start_date, end_date)
+        elif insurance_format == INSURANCE_FORMAT_ENUM.BFS or INSURANCE_FORMAT_ENUM.BSS:
+            return self._get_status_report_for_employee_life(adp_file_full_path, insurance_file_full_path, insurance_format)
         else:
-            if plan_type == PLAN_TYPE_ENUM.DENTAL:
-                return None
-            elif plan_type == PLAN_TYPE_ENUM.EMPLOYEE_LIFE:
-                return self._get_status_report_for_employee_life(adp_file_full_path, insurance_file_full_path, insurance_format)
-            elif plan_type == PLAN_TYPE_ENUM.MEDICAL:
-                return 
-            elif plan_type == PLAN_TYPE_ENUM.VISION:
-                return None
+            return None
         
     def _get_status_report_for_cigna(self, adp_file_full_path : str, insurance_file_full_path : str, id_file_full_path : str, start_date : str, end_date : str) -> pd.DataFrame:
         adp_df = pd.read_excel(adp_file_full_path, header=None) # Assuming only one sheet in the excel file
