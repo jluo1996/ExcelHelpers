@@ -175,10 +175,12 @@ class InsuranceStatusHelper:
         adp_df = pd.read_excel(adp_file_full_path, header=None) # Assuming only one sheet in the excel file
         header_row_index = adp_df[adp_df.iloc[:, 5] == ADP_HIRE_DATE_COLUMN].index[0] # Find the header row (where column F has "HIRE DATE")
         adp_df = pd.read_excel(adp_file_full_path, header=header_row_index)       
-        print(f"Full adp Row count: {len(adp_df)}")
+        if __debug__:
+            self._log_info(f"Full adp Row count: {len(adp_df)}")
 
         adp_df = adp_df[adp_df[ADP_PROVIDER_COLUMN] == INSURANCE_FORMAT_ENUM.CIGNA.get_string()] # keep only cigna 
-        print(f"Row count after keeping only employees with Cigna: {len(adp_df)}")
+        if __debug__:
+            self._log_info(f"Row count after keeping only employees with Cigna: {len(adp_df)}")
 
         adp_df = adp_df[[ADP_NAME_COLUMN, ADP_TAX_ID_COLUMN, ADP_PLAN_TYPE_COLUMN, ADP_COVERAGE_LEVEL_VALUE_COLUMN, ADP_ENROLLMENT_START_DATE_COLUMN, ADP_ENROLLMENT_END_DATE_COLUMN]] 
         adp_df[ADP_TAX_ID_COLUMN] = adp_df[ADP_TAX_ID_COLUMN].apply(self.keep_numbers_only)
@@ -188,15 +190,18 @@ class InsuranceStatusHelper:
         # merge adp_df with cigna id. The difference should all be in adp 
         cigna_id_sheet_name = "Eligibility Roster Detail"
         insurance_id_df = pd .read_excel(id_file_full_path, cigna_id_sheet_name)
-        print(f"Cigna ID row count: {len(insurance_id_df)}")
+        if __debug__:
+            self._log_info(f"Cigna ID row count: {len(insurance_id_df)}")
         insurance_id_df = insurance_id_df[[CIGNA_ID_MEMBER_ID_COLUMN, CIGNA_ID_MEMBER_SSN_COLUMN, CIGNA_ID_RELATIONSHOP_COLUMN]]
         insurance_id_df = insurance_id_df.rename(columns={CIGNA_ID_MEMBER_ID_COLUMN : CIGNA_EMPLOYEE_ID_COLUMN})
         insurance_id_df = insurance_id_df.dropna(subset=[CIGNA_ID_MEMBER_SSN_COLUMN]) # remove all rows with empty SSN
-        print(f"Row count of Cigna Id after dropping rows with empty SSN: {len(insurance_id_df)}")
+        if __debug__:
+            self._log_info(f"Row count of Cigna Id after dropping rows with empty SSN: {len(insurance_id_df)}")
         insurance_id_df[CIGNA_ID_MEMBER_SSN_COLUMN] = insurance_id_df[CIGNA_ID_MEMBER_SSN_COLUMN].apply(self.keep_numbers_only)
 
         merged_df = pd.merge(adp_df, insurance_id_df, on=[CIGNA_ID_MEMBER_SSN_COLUMN], how="outer", suffixes=["_ADP", "_CignaID"])
-        print(f"After merging adp and Cigna ID with same SSN, row count: {len(merged_df)}")
+        if __debug__:
+            self._log_info(f"After merging adp and Cigna ID with same SSN, row count: {len(merged_df)}")
 
         for row_index, row in merged_df.iterrows():
             new_comment = ""
@@ -209,19 +214,18 @@ class InsuranceStatusHelper:
                     new_comment = f"Employee family member: {relationship}"
             merged_df.at[row_index, COMMENT_COLUMN] = new_comment
 
-        print(merged_df)
-
         cigna_sheet_name = "Billing_Detail"
         insurance_df = pd.read_excel(insurance_file_full_path, cigna_sheet_name, header=11)
         index_of_endline = insurance_df.index[insurance_df[CIGNA_EMPLOYEE_NAME_COLUMN] == "Totals:"]
         insurance_df = insurance_df[[CIGNA_EMPLOYEE_ID_COLUMN, CIGNA_MEDICAL_POOLED_COLUMN, CIGNA_MEDICAL_UNPOOLED_COLUMN, CIGNA_DENTAL_COLUMN, CIGNA_VISION_COLUMN]]
         if not index_of_endline.empty:
             insurance_df = insurance_df.loc[:index_of_endline[0]-1] # keep everything before that row
-        print(f"Row count for Cigna: {len(insurance_df)}")
+        if __debug__:
+            self._log_info(f"Row count for Cigna: {len(insurance_df)}")
 
         merged_df = pd.merge(merged_df, insurance_df, on=[CIGNA_EMPLOYEE_ID_COLUMN], how="outer", suffixes=["_ADP", "_Cigna"])
-        print(f"Row count after merge with Cigna: {len(merged_df)}")
-        print(merged_df)
+        if __debug__:
+            self._log_info(f"Row count after merge with Cigna: {len(merged_df)}")
 
         medical_status_column = "MEDICAL_STATUS"
         dental_status_column = "DENTAL_STATUS"
@@ -271,9 +275,11 @@ class InsuranceStatusHelper:
                     
                     merged_df.at[row_index, status_column] = new_comment
 
-        print(f"Number of rows to drop: {len(indices_to_drop)}")
+        if __debug__:
+            self._log_info(f"Number of rows to drop: {len(indices_to_drop)}")
         merged_df = merged_df.drop(indices_to_drop)
-        print(f"Row count after dropping: {len(merged_df)}")
+        if __debug__:
+            self._log_info(f"Row count after dropping: {len(merged_df)}")
 
         merged_df = merged_df.groupby(CIGNA_ID_MEMBER_SSN_COLUMN, as_index=False).agg({
             ADP_NAME_COLUMN : "first",
@@ -287,7 +293,8 @@ class InsuranceStatusHelper:
             dental_status_column : lambda x: " ".join(x),
             vision_status_column : lambda x: " ".join(x)
         })
-        print(f"Row count after grouping: {len(merged_df)}")
+        if __debug__:
+            self._log_info(f"Row count after grouping: {len(merged_df)}")
 
         #  validate coverage level ( TODO: not sure if this is a requirement)
         employee_id_in_insurance_list = insurance_df[CIGNA_EMPLOYEE_ID_COLUMN].tolist()
