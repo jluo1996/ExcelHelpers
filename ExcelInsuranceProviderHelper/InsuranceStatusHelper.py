@@ -186,7 +186,7 @@ class InsuranceStatusHelper:
         adp_df = adp_df[adp_df[ADP_PROVIDER_COLUMN] == INSURANCE_FORMAT_ENUM.CIGNA.get_string()] # keep only cigna 
         print(f"Row count after keeping only employees with Cigna: {len(adp_df)}")
 
-        adp_df = adp_df[[ADP_NAME_COLUMN, ADP_TAX_ID_COLUMN, ADP_PLAN_TYPE_COLUMN, ADP_COVERAGE_LEVEL_VALUE_COLUMN, ADP_ENROLLMENT_START_DATE_COLUMN, ADP_ENROLLMENT_END_DATE_COLUMN]] # TODO: validate coverage level
+        adp_df = adp_df[[ADP_NAME_COLUMN, ADP_TAX_ID_COLUMN, ADP_PLAN_TYPE_COLUMN, ADP_COVERAGE_LEVEL_VALUE_COLUMN, ADP_ENROLLMENT_START_DATE_COLUMN, ADP_ENROLLMENT_END_DATE_COLUMN]] 
         adp_df[ADP_TAX_ID_COLUMN] = adp_df[ADP_TAX_ID_COLUMN].apply(self.keep_numbers_only)
         adp_df = adp_df.rename(columns={ADP_TAX_ID_COLUMN : CIGNA_ID_MEMBER_SSN_COLUMN})
         adp_df[COMMENT_COLUMN] = ""
@@ -294,6 +294,10 @@ class InsuranceStatusHelper:
             vision_status_column : lambda x: " ".join(x)
         })
         print(f"Row count after grouping: {len(merged_df)}")
+
+        #  validate coverage level ( TODO: not sure if this is a requirement)
+        employee_id_in_insurance_list = insurance_df[CIGNA_EMPLOYEE_ID_COLUMN].tolist()
+        merged_df = merged_df[(~merged_df[COMMENT_COLUMN].str.contains("Employee family member:", na=False)) | (merged_df[CIGNA_EMPLOYEE_ID_COLUMN].isin(employee_id_in_insurance_list))]
 
         return merged_df
     
